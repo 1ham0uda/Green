@@ -32,7 +32,7 @@ export default function PostDetailPage({ params }: PageProps) {
 
           <section className="card space-y-4 p-6">
             <h2 className="text-lg font-semibold text-zinc-900">Comments</h2>
-            <CommentForm postId={post.id} />
+            <CommentForm postId={post.id} postAuthorId={post.authorId} />
             {commentsLoading ? (
               <p className="text-sm text-zinc-500">Loading comments…</p>
             ) : (

@@ -16,14 +16,14 @@ export function useComments(postId: string | null | undefined) {
   });
 }
 
-export function useAddComment(postId: string) {
+export function useAddComment(postId: string, postAuthorId?: string) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (body: string) => {
       if (!user) throw new Error("Must be signed in");
-      return addComment(postId, user, body);
+      return addComment(postId, user, body, postAuthorId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comments", postId] });

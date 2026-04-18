@@ -18,7 +18,11 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
   const isSelf = viewerId === profile.uid;
 
   const { data: following } = useFollowStatus(viewerId, profile.uid);
-  const { follow, unfollow } = useFollowMutations(viewerId, profile.uid);
+  const { follow, unfollow } = useFollowMutations(
+    viewerId,
+    user?.handle ?? null,
+    profile.uid
+  );
 
   return (
     <section className="card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">

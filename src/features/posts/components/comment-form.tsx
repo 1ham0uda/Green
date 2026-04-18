@@ -4,9 +4,15 @@ import { useState, type FormEvent } from "react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useAddComment } from "../hooks/use-comments";
 
-export function CommentForm({ postId }: { postId: string }) {
+export function CommentForm({
+  postId,
+  postAuthorId,
+}: {
+  postId: string;
+  postAuthorId?: string;
+}) {
   const { user } = useAuth();
-  const addComment = useAddComment(postId);
+  const addComment = useAddComment(postId, postAuthorId);
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
 

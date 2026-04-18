@@ -59,7 +59,7 @@ export function PostCard({ post }: { post: Post }) {
 
       <div className="space-y-3 p-4">
         <div className="flex items-center gap-4">
-          <LikeButton postId={post.id} count={post.likeCount} />
+          <LikeButton postId={post.id} postAuthorId={post.authorId} count={post.likeCount} />
           <Link
             href={`/posts/${post.id}`}
             className="text-sm text-zinc-500 hover:text-brand-700"

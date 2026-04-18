@@ -19,6 +19,7 @@ import {
   googleAuthProvider,
 } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/collections";
+import { log } from "@/lib/logger";
 import type {
   SignInInput,
   SignUpInput,
@@ -73,7 +74,12 @@ export async function signUpWithEmail(input: SignUpInput): Promise<UserProfile> 
   );
 
   await updateProfile(credential.user, { displayName: input.displayName });
-  return createUserDocument(credential.user, { displayName: input.displayName });
+  const profile = await createUserDocument(credential.user, {
+    displayName: input.displayName,
+  });
+
+  void log("auth.signup", profile.uid);
+  return profile;
 }
 
 export async function signInWithEmail(input: SignInInput): Promise<UserProfile> {
@@ -82,12 +88,16 @@ export async function signInWithEmail(input: SignInInput): Promise<UserProfile> 
     input.email,
     input.password
   );
-  return fetchOrCreateProfile(credential.user);
+  const profile = await fetchOrCreateProfile(credential.user);
+  void log("auth.login", profile.uid);
+  return profile;
 }
 
 export async function signInWithGoogle(): Promise<UserProfile> {
   const credential = await signInWithPopup(firebaseAuth, googleAuthProvider);
-  return fetchOrCreateProfile(credential.user);
+  const profile = await fetchOrCreateProfile(credential.user);
+  void log("auth.login", profile.uid);
+  return profile;
 }
 
 export async function signOutUser(): Promise<void> {

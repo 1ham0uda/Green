@@ -52,7 +52,7 @@ export function useLikeStatus(postId: string) {
   });
 }
 
-export function useLikeMutations(postId: string) {
+export function useLikeMutations(postId: string, postAuthorId: string) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -64,7 +64,12 @@ export function useLikeMutations(postId: string) {
   const like = useMutation({
     mutationFn: () => {
       if (!user) throw new Error("Must be signed in");
-      return likePost(postId, user.uid);
+      return likePost(
+        postId,
+        user.uid,
+        { handle: user.handle, displayName: user.displayName },
+        postAuthorId
+      );
     },
     onSuccess: invalidate,
   });

@@ -19,6 +19,7 @@ import { buildUserScopedPath, uploadImage } from "@/lib/firebase/storage";
 import type { PublicProfile, UpdateProfileInput } from "../types";
 import type { UserProfile } from "@/features/auth/types";
 import { FirestorePatch } from "@/types/firestore";
+import { createNotification } from "@/features/notifications/services/notification-service";
 
 export async function getProfileById(uid: string): Promise<PublicProfile | null> {
   const ref = doc(firestore, COLLECTIONS.users, uid);
@@ -66,6 +67,7 @@ function buildFollowId(followerId: string, followingId: string): string {
 
 export async function followUser(
   followerId: string,
+  followerHandle: string,
   followingId: string
 ): Promise<void> {
   if (followerId === followingId) {
@@ -77,6 +79,7 @@ export async function followUser(
   const followerRef = doc(firestore, COLLECTIONS.users, followerId);
   const followingRef = doc(firestore, COLLECTIONS.users, followingId);
 
+  let didFollow = false;
   await runTransaction(firestore, async (tx) => {
     const existing = await tx.get(followRef);
     if (existing.exists()) return;
@@ -88,7 +91,18 @@ export async function followUser(
     });
     tx.update(followerRef, { followingCount: increment(1) });
     tx.update(followingRef, { followerCount: increment(1) });
+    didFollow = true;
   });
+
+  if (didFollow) {
+    void createNotification({
+      toUserId: followingId,
+      fromUserId: followerId,
+      fromUserHandle: followerHandle,
+      fromUserDisplayName: followerHandle,
+      type: "follow",
+    });
+  }
 }
 
 export async function unfollowUser(

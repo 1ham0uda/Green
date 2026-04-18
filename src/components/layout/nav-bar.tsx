@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { CartLink } from "./cart-link";
+import { NotificationBell } from "@/features/notifications/components/notification-bell";
 
 export function NavBar() {
   const { user, signOut, initialized } = useAuth();
@@ -28,6 +29,7 @@ export function NavBar() {
             Marketplace
           </Link>
           {user && <CartLink />}
+          {user && <NotificationBell />}
 
           {!initialized ? (
             <span className="text-xs text-zinc-400">…</span>

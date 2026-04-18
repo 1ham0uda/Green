@@ -2,8 +2,145 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+
+    // ─── Helpers ────────────────────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isAuth() && userDoc().role == 'admin';
+    }
+
+    function isVendor() {
+      return isAuth() && (userDoc().role == 'vendor' || userDoc().role == 'admin');
+    }
+
+    function notBanned() {
+      return isAuth() && userDoc().banned != true;
+    }
+
+    // ─── Users ──────────────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read: if true;
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ─── Posts ──────────────────────────────────────────────────────────────
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if isAuth() && notBanned();
+      allow update: if (isAuth() && resource.data.authorId == request.auth.uid)
+                    || isAdmin();
+      allow delete: if (isAuth() && resource.data.authorId == request.auth.uid)
+                    || isAdmin();
+
+      // Likes subcollection
+      match /likes/{userId} {
+        allow read: if true;
+        allow write: if isOwner(userId) && notBanned();
+      }
+
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAuth() && notBanned();
+        allow update: if isAuth() && resource.data.authorId == request.auth.uid;
+        allow delete: if (isAuth() && resource.data.authorId == request.auth.uid)
+                      || isAdmin();
+      }
+    }
+
+    // ─── Follows ────────────────────────────────────────────────────────────
+    match /follows/{followId} {
+      allow read: if true;
+      allow create: if isAuth()
+                    && notBanned()
+                    && request.resource.data.followerId == request.auth.uid;
+      allow delete: if isAuth()
+                    && resource.data.followerId == request.auth.uid;
+    }
+
+    // ─── Plants ─────────────────────────────────────────────────────────────
+    match /plants/{plantId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ─── Competitions ────────────────────────────────────────────────────────
+    match /competitions/{competitionId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ─── Products ────────────────────────────────────────────────────────────
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isVendor()
+                    && notBanned()
+                    && request.resource.data.vendorId == request.auth.uid;
+      allow update: if (isVendor() && resource.data.vendorId == request.auth.uid)
+                    || isAdmin();
+      allow delete: if (isVendor() && resource.data.vendorId == request.auth.uid)
+                    || isAdmin();
+    }
+
+    // ─── Orders ─────────────────────────────────────────────────────────────
+    match /orders/{orderId} {
+      allow read: if isAuth()
+                  && (resource.data.buyerId == request.auth.uid
+                      || resource.data.vendorId == request.auth.uid
+                      || isAdmin());
+      allow create: if isAuth() && notBanned()
+                    && request.resource.data.buyerId == request.auth.uid;
+      allow update: if isAdmin()
+                    || (isVendor() && resource.data.vendorId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    // ─── Carts ──────────────────────────────────────────────────────────────
+    match /carts/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // ─── Notifications ───────────────────────────────────────────────────────
+    match /users/{userId}/notifications/{notifId} {
+      allow read: if isOwner(userId);
+      allow create: if isAuth();
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    // ─── Reports ────────────────────────────────────────────────────────────
+    match /reports/{reportId} {
+      allow read: if isAdmin();
+      allow create: if isAuth() && notBanned();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ─── Moderation Logs ─────────────────────────────────────────────────────
+    match /moderationLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // ─── System Logs ────────────────────────────────────────────────────────
+    match /logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuth();
+      allow update, delete: if false;
     }
   }
 }

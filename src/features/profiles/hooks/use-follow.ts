@@ -20,6 +20,7 @@ export function useFollowStatus(
 
 export function useFollowMutations(
   followerId: string | null | undefined,
+  followerHandle: string | null | undefined,
   followingId: string | null | undefined
 ) {
   const queryClient = useQueryClient();
@@ -32,7 +33,12 @@ export function useFollowMutations(
   }
 
   const follow = useMutation({
-    mutationFn: () => followUser(followerId as string, followingId as string),
+    mutationFn: () =>
+      followUser(
+        followerId as string,
+        followerHandle as string,
+        followingId as string
+      ),
     onSuccess: invalidate,
   });
 

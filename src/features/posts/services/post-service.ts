@@ -20,6 +20,8 @@ import {
 import { firestore } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { buildUserScopedPath, uploadImage } from "@/lib/firebase/storage";
+import { log } from "@/lib/logger";
+import { createNotification } from "@/features/notifications/services/notification-service";
 import type { UserProfile } from "@/features/auth/types";
 import type { Comment, CreatePostInput, Post } from "../types";
 
@@ -71,6 +73,8 @@ export async function createPost(
 
   const created = await addDoc(postsRef, payload);
   await updateDoc(authorRef, { postCount: increment(1) });
+
+  void log("post.create", author.uid, { targetId: created.id });
 
   const snap = await getDoc(created);
   return mapPost(snap);
@@ -141,17 +145,35 @@ export async function deletePost(postId: string, authorId: string): Promise<void
 }
 
 // Likes: subcollection doc id == userId
-export async function likePost(postId: string, userId: string): Promise<void> {
+export async function likePost(
+  postId: string,
+  userId: string,
+  liker: { handle: string; displayName: string },
+  postAuthorId: string
+): Promise<void> {
   const postRef = doc(firestore, POSTS, postId);
   const likeRef = doc(firestore, POSTS, postId, COLLECTIONS.likes, userId);
 
+  let didLike = false;
   await runTransaction(firestore, async (tx) => {
     const existing = await tx.get(likeRef);
     if (existing.exists()) return;
 
     tx.set(likeRef, { userId, createdAt: serverTimestamp() });
     tx.update(postRef, { likeCount: increment(1) });
+    didLike = true;
   });
+
+  if (didLike && postAuthorId !== userId) {
+    void createNotification({
+      toUserId: postAuthorId,
+      fromUserId: userId,
+      fromUserHandle: liker.handle,
+      fromUserDisplayName: liker.displayName,
+      type: "like",
+      postId,
+    });
+  }
 }
 
 export async function unlikePost(postId: string, userId: string): Promise<void> {
@@ -178,7 +200,8 @@ export async function hasLiked(postId: string, userId: string): Promise<boolean>
 export async function addComment(
   postId: string,
   author: UserProfile,
-  body: string
+  body: string,
+  postAuthorId?: string
 ): Promise<Comment> {
   const postRef = doc(firestore, POSTS, postId);
   const commentsRef = collection(firestore, POSTS, postId, COLLECTIONS.comments);
@@ -194,6 +217,19 @@ export async function addComment(
 
   const created = await addDoc(commentsRef, payload);
   await updateDoc(postRef, { commentCount: increment(1) });
+
+  void log("post.comment", author.uid, { targetId: postId });
+
+  if (postAuthorId && postAuthorId !== author.uid) {
+    void createNotification({
+      toUserId: postAuthorId,
+      fromUserId: author.uid,
+      fromUserHandle: author.handle,
+      fromUserDisplayName: author.displayName,
+      type: "comment",
+      postId,
+    });
+  }
 
   const snap = await getDoc(created);
   const data = snap.data();

@@ -6,13 +6,14 @@ import { useLikeMutations, useLikeStatus } from "../hooks/use-post";
 
 interface LikeButtonProps {
   postId: string;
+  postAuthorId: string;
   count: number;
 }
 
-export function LikeButton({ postId, count }: LikeButtonProps) {
+export function LikeButton({ postId, postAuthorId, count }: LikeButtonProps) {
   const { user } = useAuth();
   const { data: liked } = useLikeStatus(postId);
-  const { like, unlike } = useLikeMutations(postId);
+  const { like, unlike } = useLikeMutations(postId, postAuthorId);
 
   const pending = like.isPending || unlike.isPending;
 
