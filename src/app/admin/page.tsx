@@ -32,6 +32,11 @@ export default function AdminOverviewPage() {
             value={stats.activeCompetitions}
             accent="brand"
           />
+          <StatCard
+            label="Pending verifications"
+            value={stats.pendingVerifications}
+            accent={stats.pendingVerifications > 0 ? "amber" : "zinc"}
+          />
         </div>
       )}
     </div>

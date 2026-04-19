@@ -24,10 +24,14 @@ function VendorProductsContent() {
   const { data, isLoading } = useVendorProducts(user?.uid);
   const deleteProduct = useDeleteProduct();
 
-  if (user && user.role !== "vendor") {
+  if (user && user.role !== "business" && user.role !== "admin") {
     return (
-      <div className="card p-8 text-center text-sm text-zinc-600">
-        You need a vendor account to access this area.
+      <div className="card p-8 text-center space-y-2">
+        <p className="font-medium text-zinc-900">Business account required</p>
+        <p className="text-sm text-zinc-600">
+          Only business accounts can manage products. You currently have a{" "}
+          <strong>{user.role}</strong> account.
+        </p>
       </div>
     );
   }

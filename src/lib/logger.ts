@@ -29,6 +29,8 @@ export type LogAction =
   | "admin.close_competition"
   | "admin.delete_competition"
   | "admin.resolve_report"
+  | "admin.approve_verification"
+  | "admin.reject_verification"
   | "moderation.report_create";
 
 export interface LogEntry {

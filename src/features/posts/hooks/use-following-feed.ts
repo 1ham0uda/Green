@@ -36,6 +36,7 @@ function mapPost(d: QueryDocumentSnapshot): Post {
     authorHandle: data.authorHandle,
     authorDisplayName: data.authorDisplayName,
     authorPhotoURL: data.authorPhotoURL ?? null,
+    authorIsVerified: data.authorIsVerified ?? false,
     caption: data.caption,
     imageURL: data.imageURL,
     plantId: data.plantId ?? null,

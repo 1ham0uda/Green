@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { AuthGate } from "@/features/auth/components/auth-gate";
+import { useAuth } from "@/features/auth/hooks/use-auth";
 import { ProductForm } from "@/features/marketplace/components/product-form";
 import { useCreateProduct } from "@/features/marketplace/hooks/use-products";
 
@@ -16,8 +17,20 @@ export default function NewProductPage() {
 }
 
 function NewProductContent() {
+  const { user } = useAuth();
   const router = useRouter();
   const createProduct = useCreateProduct();
+
+  if (user && user.role !== "business" && user.role !== "admin") {
+    return (
+      <div className="card p-8 text-center space-y-2">
+        <p className="font-medium text-zinc-900">Business account required</p>
+        <p className="text-sm text-zinc-600">
+          Only business accounts can create products.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="card p-6">

@@ -3,20 +3,25 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import {
+  adminApproveVerification,
   adminCreateCompetition,
   adminDeleteCompetition,
   adminDeletePost,
+  adminRejectVerification,
   adminUpdateCompetitionStatus,
   approveProduct,
   banUser,
   fetchAllUsers,
+  fetchAllVerifications,
   fetchDashboardStats,
   fetchLogs,
   fetchModerationLogs,
   fetchOpenReports,
   fetchPendingProducts,
+  fetchPendingVerifications,
   rejectProduct,
   resolveReport,
+  searchUsers,
   unbanUser,
   updateUserRole,
 } from "../services/admin-service";
@@ -30,6 +35,7 @@ import type {
   SystemLog,
   Report,
 } from "../services/admin-service";
+import type { VerificationRequest } from "@/features/verification/types";
 
 export function useIsAdmin() {
   const { user } = useAuth();
@@ -242,6 +248,80 @@ export function useResolveReport() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "reports"] });
+      qc.invalidateQueries({ queryKey: ["admin", "stats"] });
+    },
+  });
+}
+
+// ─── SEARCH ──────────────────────────────────────────────────────────────────
+
+export function useSearchUsers(term: string) {
+  const isAdmin = useIsAdmin();
+  return useQuery<AdminUser[], Error>({
+    queryKey: ["admin", "users", "search", term],
+    queryFn: () => searchUsers(term),
+    enabled: isAdmin && term.length >= 2,
+  });
+}
+
+// ─── VERIFICATION ─────────────────────────────────────────────────────────────
+
+export function usePendingVerifications() {
+  const isAdmin = useIsAdmin();
+  return useQuery<VerificationRequest[], Error>({
+    queryKey: ["admin", "verifications", "pending"],
+    queryFn: () => fetchPendingVerifications(),
+    enabled: isAdmin,
+  });
+}
+
+export function useAllVerifications() {
+  const isAdmin = useIsAdmin();
+  return useQuery<VerificationRequest[], Error>({
+    queryKey: ["admin", "verifications", "all"],
+    queryFn: () => fetchAllVerifications(),
+    enabled: isAdmin,
+  });
+}
+
+export function useAdminApproveVerification() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      requestId,
+      userId,
+    }: {
+      requestId: string;
+      userId: string;
+    }) => {
+      if (!user) throw new Error("Not authenticated");
+      return adminApproveVerification(user.uid, user.handle, requestId, userId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "verifications"] });
+      qc.invalidateQueries({ queryKey: ["admin", "stats"] });
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+  });
+}
+
+export function useAdminRejectVerification() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      requestId,
+      userId,
+    }: {
+      requestId: string;
+      userId: string;
+    }) => {
+      if (!user) throw new Error("Not authenticated");
+      return adminRejectVerification(user.uid, user.handle, requestId, userId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "verifications"] });
       qc.invalidateQueries({ queryKey: ["admin", "stats"] });
     },
   });

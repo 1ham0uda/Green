@@ -5,19 +5,27 @@ import { cn } from "@/lib/utils/cn";
 import {
   useAllUsers,
   useBanUser,
+  useSearchUsers,
   useUnbanUser,
   useUpdateUserRole,
 } from "@/features/admin/hooks/use-admin";
+import { VerificationBadge } from "@/features/verification/components/verification-badge";
 import type { AdminUser } from "@/features/admin/types";
 import type { UserProfile } from "@/features/auth/types";
 
 export default function AdminUsersPage() {
-  const { data: users, isLoading } = useAllUsers();
+  const [searchTerm, setSearchTerm] = useState("");
+  const { data: allUsers, isLoading: allLoading } = useAllUsers();
+  const { data: searchResults, isLoading: searchLoading } = useSearchUsers(searchTerm);
   const banUser = useBanUser();
   const unbanUser = useUnbanUser();
   const updateRole = useUpdateUserRole();
   const [banReason, setBanReason] = useState<Record<string, string>>({});
   const [banDialogId, setBanDialogId] = useState<string | null>(null);
+
+  const isSearching = searchTerm.length >= 2;
+  const users = isSearching ? searchResults : allUsers;
+  const isLoading = isSearching ? searchLoading : allLoading;
 
   function handleBan(user: AdminUser) {
     const reason = banReason[user.uid] ?? "Violation of community guidelines";
@@ -34,8 +42,29 @@ export default function AdminUsersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-zinc-900">
-          Users ({users?.length ?? 0})
+          Users ({isSearching ? (searchResults?.length ?? 0) : (allUsers?.length ?? 0)})
         </h2>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+        >
+          <circle cx={11} cy={11} r={8} />
+          <path d="m21 21-4.35-4.35" />
+        </svg>
+        <input
+          type="search"
+          placeholder="Search by username…"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="input pl-9"
+        />
       </div>
 
       {isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
@@ -44,24 +73,26 @@ export default function AdminUsersPage() {
         <table className="w-full text-sm">
           <thead className="bg-surface-muted text-left">
             <tr>
-              {["User", "Handle", "Role", "Posts", "Status", "Actions"].map(
-                (h) => (
-                  <th
-                    key={h}
-                    className="px-4 py-3 font-medium text-zinc-600"
-                  >
-                    {h}
-                  </th>
-                )
-              )}
+              {["User", "Username", "Role", "Posts", "Status", "Actions"].map((h) => (
+                <th key={h} className="px-4 py-3 font-medium text-zinc-600">
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-surface-border">
             {users?.map((u) => (
               <tr key={u.uid} className="hover:bg-surface-muted/50">
-                <td className="px-4 py-3 font-medium text-zinc-900">
-                  {u.displayName}
-                  <p className="text-xs text-zinc-500">{u.email}</p>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <p className="font-medium text-zinc-900 flex items-center gap-1">
+                        {u.displayName}
+                        {u.isVerified && <VerificationBadge />}
+                      </p>
+                      <p className="text-xs text-zinc-500">{u.email}</p>
+                    </div>
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-zinc-600">@{u.handle}</td>
                 <td className="px-4 py-3">
@@ -73,7 +104,7 @@ export default function AdminUsersPage() {
                     className="input w-auto text-xs"
                   >
                     <option value="user">User</option>
-                    <option value="vendor">Vendor</option>
+                    <option value="business">Business</option>
                     <option value="admin">Admin</option>
                   </select>
                 </td>
@@ -82,16 +113,16 @@ export default function AdminUsersPage() {
                   <span
                     className={cn(
                       "rounded-full px-2 py-0.5 text-xs font-medium",
-                      u.banned
+                      u.isBanned
                         ? "bg-red-100 text-red-700"
                         : "bg-brand-100 text-brand-700"
                     )}
                   >
-                    {u.banned ? "Banned" : "Active"}
+                    {u.isBanned ? "Banned" : "Active"}
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  {u.banned ? (
+                  {u.isBanned ? (
                     <button
                       type="button"
                       onClick={() => void unbanUser.mutateAsync(u.uid)}
@@ -148,6 +179,12 @@ export default function AdminUsersPage() {
             ))}
           </tbody>
         </table>
+
+        {!isLoading && !users?.length && (
+          <p className="p-8 text-center text-sm text-zinc-500">
+            {isSearching ? `No users matching "${searchTerm}".` : "No users yet."}
+          </p>
+        )}
       </div>
     </div>
   );

@@ -7,11 +7,16 @@ import {
   type User,
 } from "firebase/auth";
 import {
+  collection,
   doc,
   getDoc,
+  getDocs,
+  limit,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import {
   firebaseAuth,
@@ -27,10 +32,39 @@ import type {
   UserRole,
 } from "../types";
 
-function handleFromEmail(email: string): string {
-  const base = email.split("@")[0] ?? "gardener";
-  return base.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20) || "gardener";
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function sanitizeHandle(raw: string): string {
+  return raw.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20) || "gardener";
 }
+
+function handleFromEmail(email: string): string {
+  return sanitizeHandle(email.split("@")[0] ?? "gardener");
+}
+
+export async function isHandleAvailable(handle: string): Promise<boolean> {
+  const q = query(
+    collection(firestore, COLLECTIONS.users),
+    where("handle", "==", handle),
+    limit(1)
+  );
+  const snap = await getDocs(q);
+  return snap.empty;
+}
+
+async function assertHandleAvailable(handle: string, excludeUid?: string): Promise<void> {
+  const q = query(
+    collection(firestore, COLLECTIONS.users),
+    where("handle", "==", handle),
+    limit(1)
+  );
+  const snap = await getDocs(q);
+  if (!snap.empty && snap.docs[0].id !== excludeUid) {
+    throw new Error("That username is already taken. Please choose another.");
+  }
+}
+
+// ─── Profile creation ────────────────────────────────────────────────────────
 
 async function createUserDocument(
   user: User,
@@ -43,14 +77,21 @@ async function createUserDocument(
     return existing.data() as UserProfile;
   }
 
+  const handle =
+    overrides.handle ?? handleFromEmail(user.email ?? user.uid);
+
   const profile: Omit<UserProfile, "createdAt" | "updatedAt"> = {
     uid: user.uid,
     email: user.email ?? "",
     displayName: user.displayName ?? overrides.displayName ?? "New Gardener",
-    handle: overrides.handle ?? handleFromEmail(user.email ?? user.uid),
+    handle,
     photoURL: user.photoURL ?? null,
     bio: "",
     role: (overrides.role ?? "user") as UserRole,
+    isVerified: false,
+    verificationStatus: "none",
+    isBanned: false,
+    bannedReason: null,
     followerCount: 0,
     followingCount: 0,
     postCount: 0,
@@ -66,7 +107,20 @@ async function createUserDocument(
   return saved.data() as UserProfile;
 }
 
+// ─── Public auth functions ───────────────────────────────────────────────────
+
 export async function signUpWithEmail(input: SignUpInput): Promise<UserProfile> {
+  const handle = sanitizeHandle(input.username);
+
+  if (handle.length < 3) {
+    throw new Error("Username must be at least 3 characters.");
+  }
+  if (!/^[a-z0-9_]+$/.test(handle)) {
+    throw new Error("Username can only contain lowercase letters, numbers, and underscores.");
+  }
+
+  await assertHandleAvailable(handle);
+
   const credential = await createUserWithEmailAndPassword(
     firebaseAuth,
     input.email,
@@ -74,8 +128,11 @@ export async function signUpWithEmail(input: SignUpInput): Promise<UserProfile> 
   );
 
   await updateProfile(credential.user, { displayName: input.displayName });
+
   const profile = await createUserDocument(credential.user, {
     displayName: input.displayName,
+    handle,
+    role: input.role,
   });
 
   void log("auth.signup", profile.uid);
@@ -89,6 +146,14 @@ export async function signInWithEmail(input: SignInInput): Promise<UserProfile> 
     input.password
   );
   const profile = await fetchOrCreateProfile(credential.user);
+
+  if (profile.isBanned) {
+    await signOut(firebaseAuth);
+    throw new Error(
+      `Your account has been suspended${profile.bannedReason ? `: ${profile.bannedReason}` : "."}`
+    );
+  }
+
   void log("auth.login", profile.uid);
   return profile;
 }
@@ -96,6 +161,14 @@ export async function signInWithEmail(input: SignInInput): Promise<UserProfile> 
 export async function signInWithGoogle(): Promise<UserProfile> {
   const credential = await signInWithPopup(firebaseAuth, googleAuthProvider);
   const profile = await fetchOrCreateProfile(credential.user);
+
+  if (profile.isBanned) {
+    await signOut(firebaseAuth);
+    throw new Error(
+      `Your account has been suspended${profile.bannedReason ? `: ${profile.bannedReason}` : "."}`
+    );
+  }
+
   void log("auth.login", profile.uid);
   return profile;
 }

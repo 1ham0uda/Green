@@ -6,6 +6,7 @@ export interface Post {
   authorHandle: string;
   authorDisplayName: string;
   authorPhotoURL: string | null;
+  authorIsVerified: boolean;
   caption: string;
   imageURL: string;
   plantId: string | null;

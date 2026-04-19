@@ -9,11 +9,11 @@ export const COLLECTIONS = {
   products: "products",
   orders: "orders",
   carts: "carts",
-  // new
   notifications: "notifications",
   logs: "logs",
   reports: "reports",
   moderationLogs: "moderationLogs",
+  verificationRequests: "verificationRequests",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

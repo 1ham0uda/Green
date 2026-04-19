@@ -19,6 +19,9 @@ export function NavBar() {
           <Link href="/feed" className="text-zinc-600 hover:text-zinc-900">
             Feed
           </Link>
+          <Link href="/search" className="text-zinc-600 hover:text-zinc-900">
+            Search
+          </Link>
           <Link href="/plants" className="text-zinc-600 hover:text-zinc-900">
             Plants
           </Link>

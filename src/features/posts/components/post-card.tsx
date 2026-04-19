@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { LikeButton } from "./like-button";
+import { VerificationBadge } from "@/features/verification/components/verification-badge";
 import type { Post } from "../types";
 
 function formatDate(post: Post): string {
@@ -37,9 +38,10 @@ export function PostCard({ post }: { post: Post }) {
         <div className="flex flex-col">
           <Link
             href={`/u/${post.authorHandle}`}
-            className="text-sm font-semibold text-zinc-900 hover:text-brand-700"
+            className="flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-brand-700"
           >
             {post.authorDisplayName}
+            {post.authorIsVerified && <VerificationBadge />}
           </Link>
           <span className="text-xs text-zinc-500">
             @{post.authorHandle} · {formatDate(post)}

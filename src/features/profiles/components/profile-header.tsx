@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { VerificationBadge } from "@/features/verification/components/verification-badge";
 import type { PublicProfile } from "../types";
 import {
   useFollowMutations,
@@ -44,10 +45,18 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
         </div>
 
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900">
+          <h1 className="flex items-center gap-2 text-xl font-semibold text-zinc-900">
             {profile.displayName}
+            {profile.isVerified && <VerificationBadge size="md" />}
           </h1>
-          <p className="text-sm text-zinc-500">@{profile.handle}</p>
+          <p className="text-sm text-zinc-500">
+            @{profile.handle}
+            {profile.role === "business" && (
+              <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
+                Business
+              </span>
+            )}
+          </p>
           {profile.bio && (
             <p className="mt-2 max-w-xl text-sm text-zinc-700">{profile.bio}</p>
           )}

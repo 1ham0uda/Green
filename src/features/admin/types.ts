@@ -9,9 +9,10 @@ export interface AdminUser {
   displayName: string;
   handle: string;
   photoURL: string | null;
-  role: "user" | "vendor" | "admin";
-  banned: boolean;
-  bannedAt: Timestamp | null;
+  role: "user" | "business" | "admin";
+  isVerified: boolean;
+  verificationStatus: string;
+  isBanned: boolean;
   bannedReason: string | null;
   postCount: number;
   followerCount: number;
@@ -25,6 +26,7 @@ export interface DashboardStats {
   pendingProducts: number;
   openReports: number;
   activeCompetitions: number;
+  pendingVerifications: number;
 }
 
 export interface ModerationLog {

@@ -84,8 +84,8 @@ export async function createProduct(
   vendor: UserProfile,
   input: CreateProductInput
 ): Promise<Product> {
-  if (vendor.role !== "vendor") {
-    throw new Error("Only vendors can create products");
+  if (vendor.role !== "business" && vendor.role !== "admin") {
+    throw new Error("Only business accounts can create products");
   }
   if (input.price < 0) throw new Error("Price must be non-negative");
   if (input.stock < 0) throw new Error("Stock must be non-negative");

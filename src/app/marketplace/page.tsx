@@ -22,7 +22,7 @@ export default function MarketplacePage() {
           <Link href="/cart" className="btn-secondary">
             View cart
           </Link>
-          {user?.role === "vendor" && (
+          {(user?.role === "business" || user?.role === "admin") && (
             <Link href="/vendor/products" className="btn-primary">
               Vendor dashboard
             </Link>

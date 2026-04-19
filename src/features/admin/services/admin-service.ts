@@ -30,8 +30,9 @@ function mapUser(snap: QueryDocumentSnapshot): AdminUser {
     handle: d.handle ?? "",
     photoURL: d.photoURL ?? null,
     role: d.role ?? "user",
-    banned: d.banned ?? false,
-    bannedAt: d.bannedAt ?? null,
+    isVerified: d.isVerified ?? false,
+    verificationStatus: d.verificationStatus ?? "none",
+    isBanned: d.isBanned ?? d.banned ?? false,
     bannedReason: d.bannedReason ?? null,
     postCount: d.postCount ?? 0,
     followerCount: d.followerCount ?? 0,
@@ -49,6 +50,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     pendingProductsSnap,
     openReportsSnap,
     activeCompetitionsSnap,
+    pendingVerificationsSnap,
   ] = await Promise.all([
     getAggregateFromServer(collection(firestore, COLLECTIONS.users), {
       total: count(),
@@ -80,6 +82,13 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
       ),
       { total: count() }
     ),
+    getAggregateFromServer(
+      query(
+        collection(firestore, COLLECTIONS.verificationRequests),
+        where("status", "==", "pending")
+      ),
+      { total: count() }
+    ),
   ]);
 
   return {
@@ -89,6 +98,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     pendingProducts: pendingProductsSnap.data().total,
     openReports: openReportsSnap.data().total,
     activeCompetitions: activeCompetitionsSnap.data().total,
+    pendingVerifications: pendingVerificationsSnap.data().total,
   };
 }
 
@@ -104,6 +114,21 @@ export async function fetchAllUsers(pageLimit = 50): Promise<AdminUser[]> {
   return snap.docs.map(mapUser);
 }
 
+export async function searchUsers(term: string, pageLimit = 20): Promise<AdminUser[]> {
+  const lower = term.toLowerCase().trim();
+  if (!lower) return [];
+
+  // Search by handle prefix (Firestore range query)
+  const q = query(
+    collection(firestore, COLLECTIONS.users),
+    where("handle", ">=", lower),
+    where("handle", "<=", lower + "\uf8ff"),
+    limit(pageLimit)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map(mapUser);
+}
+
 export async function banUser(
   adminId: string,
   adminHandle: string,
@@ -111,7 +136,7 @@ export async function banUser(
   reason: string
 ): Promise<void> {
   await updateDoc(doc(firestore, COLLECTIONS.users, targetUserId), {
-    banned: true,
+    isBanned: true,
     bannedAt: serverTimestamp(),
     bannedReason: reason,
   });
@@ -136,7 +161,7 @@ export async function unbanUser(
   targetUserId: string
 ): Promise<void> {
   await updateDoc(doc(firestore, COLLECTIONS.users, targetUserId), {
-    banned: false,
+    isBanned: false,
     bannedAt: null,
     bannedReason: null,
   });
@@ -371,6 +396,59 @@ export async function resolveReport(
   });
 }
 
+// ─── VERIFICATION MANAGEMENT ──────────────────────────────────────────────────
+
+export {
+  fetchAllVerifications,
+  fetchPendingVerifications,
+} from "@/features/verification/services/verification-service";
+
+export async function adminApproveVerification(
+  adminId: string,
+  adminHandle: string,
+  requestId: string,
+  userId: string
+): Promise<void> {
+  const { approveVerificationRequest } = await import(
+    "@/features/verification/services/verification-service"
+  );
+  await approveVerificationRequest(requestId, userId, adminId);
+
+  await writeModerationLog(adminId, adminHandle, {
+    action: "approve_verification",
+    targetId: userId,
+    targetType: "user",
+    note: "",
+  });
+
+  await log("admin.approve_verification" as Parameters<typeof log>[0], adminId, {
+    targetId: userId,
+  });
+}
+
+export async function adminRejectVerification(
+  adminId: string,
+  adminHandle: string,
+  requestId: string,
+  userId: string
+): Promise<void> {
+  const { rejectVerificationRequest } = await import(
+    "@/features/verification/services/verification-service"
+  );
+  await rejectVerificationRequest(requestId, userId, adminId);
+
+  await writeModerationLog(adminId, adminHandle, {
+    action: "reject_verification",
+    targetId: userId,
+    targetType: "user",
+    note: "",
+  });
+
+  await log("admin.reject_verification" as Parameters<typeof log>[0], adminId, {
+    targetId: userId,
+  });
+}
+
 // ─── LOGS ────────────────────────────────────────────────────────────────────
 
 export interface SystemLog {
@@ -463,7 +541,7 @@ export async function seedAdminProfile(uid: string): Promise<void> {
   const ref = doc(firestore, COLLECTIONS.users, uid);
   const existing = await getDoc(ref);
   if (existing.exists()) {
-    await updateDoc(ref, { role: "admin", banned: false });
+    await updateDoc(ref, { role: "admin", isBanned: false });
     return;
   }
 
@@ -476,8 +554,9 @@ export async function seedAdminProfile(uid: string): Promise<void> {
       photoURL: null,
       bio: "",
       role: "admin",
-      banned: false,
-      bannedAt: null,
+      isVerified: true,
+      verificationStatus: "approved",
+      isBanned: false,
       bannedReason: null,
       followerCount: 0,
       followingCount: 0,
