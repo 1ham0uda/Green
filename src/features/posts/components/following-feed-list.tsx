@@ -1,5 +1,10 @@
 "use client";
 
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SkeletonPostCard } from "@/components/ui/skeleton";
+import { Icon } from "@/components/ui/icon";
 import { useFollowingFeed } from "../hooks/use-following-feed";
 import { PostCard } from "./post-card";
 
@@ -14,14 +19,21 @@ export function FollowingFeedList({ userId }: { userId: string }) {
   } = useFollowingFeed(userId);
 
   if (isLoading) {
-    return <p className="text-sm text-zinc-500">Loading feed…</p>;
+    return (
+      <div className="space-y-6">
+        <SkeletonPostCard />
+        <SkeletonPostCard />
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <p className="text-sm text-red-600" role="alert">
-        Failed to load feed: {error.message}
-      </p>
+      <EmptyState
+        icon={<Icon.Flag size={22} />}
+        title="Failed to load feed"
+        description={error.message}
+      />
     );
   }
 
@@ -29,11 +41,16 @@ export function FollowingFeedList({ userId }: { userId: string }) {
 
   if (posts.length === 0) {
     return (
-      <div className="card p-8 text-center">
-        <p className="text-sm text-zinc-500">
-          Follow some gardeners to see their posts here.
-        </p>
-      </div>
+      <EmptyState
+        icon={<Icon.Users size={22} />}
+        title="Your feed is empty"
+        description="Follow other gardeners to see their posts in this feed."
+        action={
+          <Link href="/search" className="btn-primary">
+            Discover gardeners
+          </Link>
+        }
+      />
     );
   }
 
@@ -44,15 +61,14 @@ export function FollowingFeedList({ userId }: { userId: string }) {
       ))}
 
       {hasNextPage && (
-        <div className="flex justify-center">
-          <button
-            type="button"
+        <div className="flex justify-center pt-2">
+          <Button
+            variant="secondary"
             onClick={() => void fetchNextPage()}
-            disabled={isFetchingNextPage}
-            className="btn-secondary"
+            isLoading={isFetchingNextPage}
           >
-            {isFetchingNextPage ? "Loading…" : "Load more"}
-          </button>
+            Load more posts
+          </Button>
         </div>
       )}
     </div>

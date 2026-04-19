@@ -1,5 +1,9 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SkeletonPostCard } from "@/components/ui/skeleton";
+import { Icon } from "@/components/ui/icon";
 import { useFeed } from "../hooks/use-feed";
 import { PostCard } from "./post-card";
 
@@ -8,14 +12,21 @@ export function FeedList() {
     useFeed();
 
   if (isLoading) {
-    return <p className="text-sm text-zinc-500">Loading feed…</p>;
+    return (
+      <div className="space-y-6">
+        <SkeletonPostCard />
+        <SkeletonPostCard />
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <p className="text-sm text-red-600" role="alert">
-        Failed to load feed: {error.message}
-      </p>
+      <EmptyState
+        icon={<Icon.Flag size={22} />}
+        title="Failed to load feed"
+        description={error.message}
+      />
     );
   }
 
@@ -23,11 +34,11 @@ export function FeedList() {
 
   if (posts.length === 0) {
     return (
-      <div className="card p-8 text-center">
-        <p className="text-sm text-zinc-500">
-          No posts yet. Be the first to share something growing!
-        </p>
-      </div>
+      <EmptyState
+        icon={<Icon.Leaf size={22} />}
+        title="No posts yet"
+        description="Be the first to share something growing in your garden!"
+      />
     );
   }
 
@@ -38,15 +49,14 @@ export function FeedList() {
       ))}
 
       {hasNextPage && (
-        <div className="flex justify-center">
-          <button
-            type="button"
+        <div className="flex justify-center pt-2">
+          <Button
+            variant="secondary"
             onClick={() => void fetchNextPage()}
-            disabled={isFetchingNextPage}
-            className="btn-secondary"
+            isLoading={isFetchingNextPage}
           >
-            {isFetchingNextPage ? "Loading…" : "Load more"}
-          </button>
+            Load more posts
+          </Button>
         </div>
       )}
     </div>

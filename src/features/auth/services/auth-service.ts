@@ -34,6 +34,27 @@ import type {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+function mapProfile(d: Record<string, unknown>): UserProfile {
+  return {
+    uid: d.uid as string,
+    email: (d.email as string) ?? "",
+    displayName: (d.displayName as string) ?? "Gardener",
+    handle: (d.handle as string) ?? (d.uid as string),
+    photoURL: (d.photoURL as string | null) ?? null,
+    bio: (d.bio as string) ?? "",
+    role: ((d.role as string) ?? "user") as UserRole,
+    isVerified: (d.isVerified as boolean) ?? false,
+    verificationStatus: (d.verificationStatus as UserProfile["verificationStatus"]) ?? "none",
+    isBanned: (d.isBanned as boolean) ?? (d.banned as boolean) ?? false,
+    bannedReason: (d.bannedReason as string | null) ?? null,
+    followerCount: (d.followerCount as number) ?? 0,
+    followingCount: (d.followingCount as number) ?? 0,
+    postCount: (d.postCount as number) ?? 0,
+    createdAt: (d.createdAt as UserProfile["createdAt"]) ?? null,
+    updatedAt: (d.updatedAt as UserProfile["updatedAt"]) ?? null,
+  };
+}
+
 function sanitizeHandle(raw: string): string {
   return raw.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20) || "gardener";
 }
@@ -74,7 +95,7 @@ async function createUserDocument(
   const existing = await getDoc(ref);
 
   if (existing.exists()) {
-    return existing.data() as UserProfile;
+    return mapProfile(existing.data());
   }
 
   const handle =
@@ -104,7 +125,7 @@ async function createUserDocument(
   });
 
   const saved = await getDoc(ref);
-  return saved.data() as UserProfile;
+  return mapProfile(saved.data()!);
 }
 
 // ─── Public auth functions ───────────────────────────────────────────────────
@@ -185,7 +206,7 @@ export async function fetchOrCreateProfile(user: User): Promise<UserProfile> {
     return createUserDocument(user);
   }
 
-  return snap.data() as UserProfile;
+  return mapProfile(snap.data());
 }
 
 export async function updateUserProfile(

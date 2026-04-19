@@ -1,8 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { VerificationBadge } from "@/features/verification/components/verification-badge";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
 import type { PublicProfile } from "../types";
 import {
   useFollowMutations,
@@ -26,86 +29,101 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
   );
 
   return (
-    <section className="card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
-      <div className="flex items-center gap-4">
-        <div className="h-20 w-20 overflow-hidden rounded-full bg-brand-100">
-          {profile.photoURL ? (
-            <Image
-              src={profile.photoURL}
-              alt={profile.displayName}
-              width={80}
-              height={80}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-brand-700">
-              {profile.displayName.slice(0, 1).toUpperCase()}
+    <section className="relative overflow-hidden rounded-3xl border border-surface-border bg-surface shadow-card">
+      {/* Cover gradient */}
+      <div className="h-28 bg-gradient-to-br from-brand-400 via-brand-500 to-brand-700 sm:h-36" />
+
+      <div className="px-6 pb-6 sm:px-8">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="-mt-14 flex flex-col items-start gap-4 sm:-mt-16 sm:flex-row sm:items-end">
+            <div className="rounded-full bg-surface p-1 shadow-card">
+              <Avatar
+                src={profile.photoURL}
+                name={profile.displayName}
+                size="2xl"
+              />
             </div>
-          )}
-        </div>
 
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-semibold text-zinc-900">
-            {profile.displayName}
-            {profile.isVerified && <VerificationBadge size="md" />}
-          </h1>
-          <p className="text-sm text-zinc-500">
-            @{profile.handle}
-            {profile.role === "business" && (
-              <span className="ml-2 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
-                Business
-              </span>
+            <div className="space-y-1.5 sm:pb-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-ink">
+                  {profile.displayName}
+                  {profile.isVerified && <VerificationBadge size="md" />}
+                </h1>
+                {profile.role === "business" && (
+                  <Badge variant="blue">
+                    <Icon.ShoppingBag size={12} />
+                    Business
+                  </Badge>
+                )}
+                {profile.role === "admin" && (
+                  <Badge variant="red">
+                    <Icon.Shield size={12} />
+                    Admin
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm text-ink-muted">@{profile.handle}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 sm:pb-2">
+            {!isSelf && viewerId && (
+              <>
+                {following ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => unfollow.mutate()}
+                    isLoading={unfollow.isPending}
+                  >
+                    Following
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => follow.mutate()}
+                    isLoading={follow.isPending}
+                  >
+                    Follow
+                  </Button>
+                )}
+                <a href="#" className="btn-secondary">
+                  <Icon.MessageCircle size={16} />
+                </a>
+              </>
             )}
-          </p>
-          {profile.bio && (
-            <p className="mt-2 max-w-xl text-sm text-zinc-700">{profile.bio}</p>
-          )}
 
-          <div className="mt-3 flex gap-4 text-sm text-zinc-600">
-            <span>
-              <strong className="text-zinc-900">{profile.postCount}</strong> posts
-            </span>
-            <span>
-              <strong className="text-zinc-900">{profile.followerCount}</strong>{" "}
-              followers
-            </span>
-            <span>
-              <strong className="text-zinc-900">{profile.followingCount}</strong>{" "}
-              following
-            </span>
+            {isSelf && (
+              <a href="/settings/profile" className="btn-secondary">
+                <Icon.Settings size={16} />
+                Edit profile
+              </a>
+            )}
           </div>
         </div>
-      </div>
 
-      {!isSelf && viewerId && (
-        <div>
-          {following ? (
-            <button
-              type="button"
-              onClick={() => unfollow.mutate()}
-              disabled={unfollow.isPending}
-              className="btn-secondary"
-            >
-              {unfollow.isPending ? "…" : "Unfollow"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => follow.mutate()}
-              disabled={follow.isPending}
-              className="btn-primary"
-            >
-              {follow.isPending ? "…" : "Follow"}
-            </button>
-          )}
+        {profile.bio && (
+          <p className="mt-5 max-w-2xl text-pretty text-sm leading-relaxed text-ink">
+            {profile.bio}
+          </p>
+        )}
+
+        <div className="mt-5 grid grid-cols-3 divide-x divide-surface-border rounded-2xl border border-surface-border bg-surface-muted">
+          <Stat label="Posts" value={profile.postCount} />
+          <Stat label="Followers" value={profile.followerCount} />
+          <Stat label="Following" value={profile.followingCount} />
         </div>
-      )}
-
-      {isSelf && (
-        <a href="/settings/profile" className="btn-secondary">
-          Edit profile
-        </a>
-      )}
+      </div>
     </section>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex flex-col items-center py-3">
+      <span className="text-lg font-bold tabular-nums text-ink">{value}</span>
+      <span className="text-xs uppercase tracking-wider text-ink-muted">
+        {label}
+      </span>
+    </div>
   );
 }

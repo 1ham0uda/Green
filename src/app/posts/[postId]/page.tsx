@@ -4,6 +4,9 @@ import { use } from "react";
 import { CommentForm } from "@/features/posts/components/comment-form";
 import { CommentList } from "@/features/posts/components/comment-list";
 import { PostCard } from "@/features/posts/components/post-card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SkeletonPostCard, SkeletonRow } from "@/components/ui/skeleton";
+import { Icon } from "@/components/ui/icon";
 import {
   useComments,
   usePostById,
@@ -19,22 +22,35 @@ export default function PostDetailPage({ params }: PageProps) {
   const { data: comments, isLoading: commentsLoading } = useComments(postId);
 
   return (
-    <main className="container max-w-2xl py-8">
-      {postLoading && <p className="text-sm text-zinc-500">Loading post…</p>}
+    <main className="container max-w-2xl py-6 sm:py-10">
+      {postLoading && <SkeletonPostCard />}
 
       {!postLoading && !post && (
-        <p className="text-sm text-zinc-500">This post doesn&apos;t exist.</p>
+        <EmptyState
+          icon={<Icon.Flag size={22} />}
+          title="Post not found"
+          description="This post may have been deleted or never existed."
+        />
       )}
 
       {post && (
         <div className="space-y-6">
           <PostCard post={post} />
 
-          <section className="card space-y-4 p-6">
-            <h2 className="text-lg font-semibold text-zinc-900">Comments</h2>
+          <section className="card space-y-5 p-6">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-ink">Comments</h2>
+              <span className="rounded-full bg-surface-subtle px-2 py-0.5 text-xs font-medium text-ink-muted">
+                {post.commentCount}
+              </span>
+            </div>
             <CommentForm postId={post.id} postAuthorId={post.authorId} />
+
             {commentsLoading ? (
-              <p className="text-sm text-zinc-500">Loading comments…</p>
+              <div className="space-y-1 pt-2">
+                <SkeletonRow />
+                <SkeletonRow />
+              </div>
             ) : (
               <CommentList comments={comments ?? []} />
             )}

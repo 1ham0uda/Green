@@ -5,15 +5,16 @@ export const metadata = { title: "Edit profile" };
 
 export default function EditProfilePage() {
   return (
-    <main className="container max-w-2xl py-8">
-      <AuthGate>
-        <div className="card p-6">
-          <h1 className="mb-6 text-xl font-semibold text-zinc-900">
-            Edit your profile
-          </h1>
-          <EditProfileForm />
+    <AuthGate>
+      <div className="card p-6 sm:p-8">
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-ink">Profile</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            Your public information shown across Green.
+          </p>
         </div>
-      </AuthGate>
-    </main>
+        <EditProfileForm />
+      </div>
+    </AuthGate>
   );
 }

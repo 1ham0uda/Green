@@ -3,12 +3,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { motion } from "framer-motion";
 import {
   usePostSearch,
   useProductSearch,
   useUserSearch,
 } from "@/features/search/hooks/use-search";
 import { VerificationBadge } from "@/features/verification/components/verification-badge";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Icon } from "@/components/ui/icon";
+import { Tabs } from "@/components/ui/tabs";
+import { SkeletonRow } from "@/components/ui/skeleton";
 import type { PublicProfile } from "@/features/profiles/types";
 import type { Post } from "@/features/posts/types";
 import type { Product } from "@/features/marketplace/types";
@@ -26,16 +33,24 @@ export default function SearchPage() {
   const isSearching = query.length >= 2;
 
   return (
-    <main className="container max-w-2xl py-8">
-      <h1 className="mb-4 text-2xl font-semibold text-zinc-900">Search</h1>
+    <main className="container max-w-2xl py-6 sm:py-10">
+      <div className="mb-6">
+        <h1 className="text-display-sm font-bold tracking-tight text-ink">
+          Search
+        </h1>
+        <p className="mt-1 text-sm text-ink-muted">
+          Find gardeners, posts, and products.
+        </p>
+      </div>
 
-      <div className="relative mb-4">
+      <div className="relative mb-6">
         <svg
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
           strokeWidth={2}
-          className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400"
+          strokeLinecap="round"
+          className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-subtle"
         >
           <circle cx={11} cy={11} r={8} />
           <path d="m21 21-4.35-4.35" />
@@ -46,56 +61,68 @@ export default function SearchPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           autoFocus
-          className="input pl-10"
+          className="input h-12 pl-12 text-base"
         />
       </div>
 
       {isSearching && (
         <>
-          <div className="mb-4 flex gap-0 border-b border-surface-border">
-            {(["users", "posts", "products"] as const).map((t) => {
-              const count =
-                t === "users"
-                  ? users?.length
-                  : t === "posts"
-                  ? posts?.length
-                  : products?.length;
-              return (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setTab(t)}
-                  className={`px-4 py-2 text-sm font-medium capitalize ${
-                    tab === t
-                      ? "border-b-2 border-brand-600 text-brand-600"
-                      : "text-zinc-500 hover:text-zinc-700"
-                  }`}
-                >
-                  {t} {count != null ? `(${count})` : ""}
-                </button>
-              );
-            })}
+          <div className="mb-5 flex justify-center">
+            <Tabs
+              variant="pill"
+              tabs={[
+                {
+                  id: "users",
+                  label: "Users",
+                  count: users?.length ?? null,
+                  icon: <Icon.Users size={14} />,
+                },
+                {
+                  id: "posts",
+                  label: "Posts",
+                  count: posts?.length ?? null,
+                  icon: <Icon.Leaf size={14} />,
+                },
+                {
+                  id: "products",
+                  label: "Products",
+                  count: products?.length ?? null,
+                  icon: <Icon.ShoppingBag size={14} />,
+                },
+              ]}
+              active={tab}
+              onChange={(id) => setTab(id as Tab)}
+            />
           </div>
 
-          {tab === "users" && (
-            <UserResults users={users ?? []} isLoading={usersLoading} />
-          )}
-          {tab === "posts" && (
-            <PostResults posts={posts ?? []} isLoading={postsLoading} />
-          )}
-          {tab === "products" && (
-            <ProductResults
-              products={products ?? []}
-              isLoading={productsLoading}
-            />
-          )}
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            {tab === "users" && (
+              <UserResults users={users ?? []} isLoading={usersLoading} />
+            )}
+            {tab === "posts" && (
+              <PostResults posts={posts ?? []} isLoading={postsLoading} />
+            )}
+            {tab === "products" && (
+              <ProductResults
+                products={products ?? []}
+                isLoading={productsLoading}
+              />
+            )}
+          </motion.div>
         </>
       )}
 
       {!isSearching && (
-        <div className="card p-8 text-center text-sm text-zinc-500">
-          Type at least 2 characters to search.
-        </div>
+        <EmptyState
+          icon={<Icon.Search size={22} />}
+          title="Type at least 2 characters"
+          description="Start typing to search across the community."
+        />
       )}
     </main>
   );
@@ -108,10 +135,19 @@ function UserResults({
   users: PublicProfile[];
   isLoading: boolean;
 }) {
-  if (isLoading) return <p className="text-sm text-zinc-500">Searching…</p>;
+  if (isLoading)
+    return (
+      <div className="card divide-y divide-surface-border overflow-hidden">
+        <SkeletonRow />
+        <SkeletonRow />
+      </div>
+    );
   if (!users.length)
     return (
-      <p className="text-sm text-zinc-500">No users found.</p>
+      <EmptyState
+        icon={<Icon.Users size={22} />}
+        title="No users found"
+      />
     );
 
   return (
@@ -120,35 +156,18 @@ function UserResults({
         <Link
           key={u.uid}
           href={`/u/${u.handle}`}
-          className="flex items-center gap-3 p-4 hover:bg-surface-muted transition"
+          className="flex items-center gap-3 p-4 transition-colors hover:bg-surface-hover"
         >
-          <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-brand-100">
-            {u.photoURL ? (
-              <Image
-                src={u.photoURL}
-                alt={u.displayName}
-                width={40}
-                height={40}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-brand-700">
-                {u.displayName.slice(0, 1).toUpperCase()}
-              </div>
-            )}
-          </div>
+          <Avatar src={u.photoURL} name={u.displayName} size="md" />
           <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1 font-medium text-zinc-900">
+            <p className="flex items-center gap-1.5 font-medium text-ink">
               {u.displayName}
               {u.isVerified && <VerificationBadge />}
             </p>
-            <p className="text-sm text-zinc-500">@{u.handle}</p>
+            <p className="truncate text-sm text-ink-muted">@{u.handle}</p>
           </div>
-          {u.role === "business" && (
-            <span className="flex-shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
-              Business
-            </span>
-          )}
+          {u.role === "business" && <Badge variant="blue">Business</Badge>}
+          {u.role === "admin" && <Badge variant="red">Admin</Badge>}
         </Link>
       ))}
     </div>
@@ -162,8 +181,17 @@ function PostResults({
   posts: Post[];
   isLoading: boolean;
 }) {
-  if (isLoading) return <p className="text-sm text-zinc-500">Searching…</p>;
-  if (!posts.length) return <p className="text-sm text-zinc-500">No posts found.</p>;
+  if (isLoading)
+    return (
+      <div className="card divide-y divide-surface-border overflow-hidden">
+        <SkeletonRow />
+        <SkeletonRow />
+      </div>
+    );
+  if (!posts.length)
+    return (
+      <EmptyState icon={<Icon.Leaf size={22} />} title="No posts found" />
+    );
 
   return (
     <div className="card divide-y divide-surface-border overflow-hidden">
@@ -171,26 +199,26 @@ function PostResults({
         <Link
           key={p.id}
           href={`/posts/${p.id}`}
-          className="flex items-center gap-3 p-4 hover:bg-surface-muted transition"
+          className="flex items-center gap-3 p-4 transition-colors hover:bg-surface-hover"
         >
           {p.imageURL && (
-            <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-zinc-100">
+            <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-surface-subtle">
               <Image
                 src={p.imageURL}
                 alt={p.caption || "Post"}
-                width={48}
-                height={48}
-                className="h-full w-full object-cover"
+                fill
+                sizes="48px"
+                className="object-cover"
               />
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-1 text-sm font-medium text-zinc-900">
+            <p className="flex items-center gap-1.5 text-sm font-medium text-ink">
               {p.authorDisplayName}
               {p.authorIsVerified && <VerificationBadge />}
             </p>
             {p.caption && (
-              <p className="truncate text-sm text-zinc-600">{p.caption}</p>
+              <p className="truncate text-sm text-ink-muted">{p.caption}</p>
             )}
           </div>
         </Link>
@@ -206,9 +234,20 @@ function ProductResults({
   products: Product[];
   isLoading: boolean;
 }) {
-  if (isLoading) return <p className="text-sm text-zinc-500">Searching…</p>;
+  if (isLoading)
+    return (
+      <div className="card divide-y divide-surface-border overflow-hidden">
+        <SkeletonRow />
+        <SkeletonRow />
+      </div>
+    );
   if (!products.length)
-    return <p className="text-sm text-zinc-500">No products found.</p>;
+    return (
+      <EmptyState
+        icon={<Icon.ShoppingBag size={22} />}
+        title="No products found"
+      />
+    );
 
   return (
     <div className="card divide-y divide-surface-border overflow-hidden">
@@ -216,22 +255,22 @@ function ProductResults({
         <Link
           key={p.id}
           href={`/marketplace/${p.id}`}
-          className="flex items-center gap-3 p-4 hover:bg-surface-muted transition"
+          className="flex items-center gap-3 p-4 transition-colors hover:bg-surface-hover"
         >
           {p.imageURL && (
-            <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded bg-zinc-100">
+            <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-surface-subtle">
               <Image
                 src={p.imageURL}
                 alt={p.name}
-                width={48}
-                height={48}
-                className="h-full w-full object-cover"
+                fill
+                sizes="48px"
+                className="object-cover"
               />
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <p className="font-medium text-zinc-900">{p.name}</p>
-            <p className="text-sm text-zinc-500">
+            <p className="font-medium text-ink">{p.name}</p>
+            <p className="text-sm text-ink-muted">
               {p.currency} {p.price.toFixed(2)} · by {p.vendorDisplayName}
             </p>
           </div>

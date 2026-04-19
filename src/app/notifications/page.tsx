@@ -5,10 +5,15 @@ import { NotificationItem } from "@/features/notifications/components/notificati
 import { useNotifications } from "@/features/notifications/hooks/use-notifications";
 import { markOneRead } from "@/features/notifications/services/notification-service";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SkeletonRow } from "@/components/ui/skeleton";
+import { Icon } from "@/components/ui/icon";
+import { Badge } from "@/components/ui/badge";
 
 export default function NotificationsPage() {
   return (
-    <main className="container max-w-2xl py-8">
+    <main className="container max-w-2xl py-6 sm:py-10">
       <AuthGate>
         <NotificationsContent />
       </AuthGate>
@@ -26,29 +31,44 @@ function NotificationsContent() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-zinc-900">Notifications</h1>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="flex items-center gap-2 text-display-sm font-bold tracking-tight text-ink">
+            Activity
+            {unreadCount > 0 && (
+              <Badge variant="red" dot>
+                {unreadCount} new
+              </Badge>
+            )}
+          </h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            Follows, likes, and comments on your posts.
+          </p>
+        </div>
         {unreadCount > 0 && (
-          <button
-            type="button"
-            onClick={() => void readAll()}
-            className="btn-secondary text-sm"
-          >
+          <Button variant="secondary" onClick={() => void readAll()}>
             Mark all read
-          </button>
+          </Button>
         )}
       </div>
 
       <div className="card divide-y divide-surface-border overflow-hidden">
         {loading && (
-          <p className="p-6 text-sm text-zinc-500">Loading…</p>
+          <>
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
+          </>
         )}
 
         {!loading && notifications.length === 0 && (
-          <p className="p-8 text-center text-sm text-zinc-500">
-            No notifications yet.
-          </p>
+          <EmptyState
+            icon={<Icon.Bell size={22} />}
+            title="You're all caught up"
+            description="When someone follows, likes, or comments, you'll see it here."
+            className="border-0 shadow-none"
+          />
         )}
 
         {notifications.map((n) => (

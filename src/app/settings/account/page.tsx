@@ -9,12 +9,15 @@ import {
 import { firebaseAuth } from "@/lib/firebase/config";
 import { AuthGate } from "@/features/auth/components/auth-gate";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { Button } from "@/components/ui/button";
 
 function AccountContent() {
   const { user, signOut } = useAuth();
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
-  const [pwStatus, setPwStatus] = useState<"idle" | "saving" | "done" | "error">("idle");
+  const [pwStatus, setPwStatus] = useState<
+    "idle" | "saving" | "done" | "error"
+  >("idle");
   const [pwError, setPwError] = useState<string | null>(null);
 
   async function handlePasswordChange(e: React.FormEvent) {
@@ -36,14 +39,18 @@ function AccountContent() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="card p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-zinc-900">Change Password</h2>
-        <form onSubmit={handlePasswordChange} className="space-y-3 max-w-sm">
+    <div className="space-y-6">
+      <div className="card p-6 sm:p-8">
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-ink">Change password</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            Update your password. You&apos;ll stay signed in on this device.
+          </p>
+        </div>
+
+        <form onSubmit={handlePasswordChange} className="max-w-sm space-y-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">
-              Current password
-            </label>
+            <label className="label">Current password</label>
             <input
               type="password"
               value={currentPw}
@@ -53,9 +60,7 @@ function AccountContent() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">
-              New password
-            </label>
+            <label className="label">New password</label>
             <input
               type="password"
               value={newPw}
@@ -65,32 +70,32 @@ function AccountContent() {
               className="input"
             />
           </div>
-          {pwError && <p className="text-sm text-red-600">{pwError}</p>}
-          {pwStatus === "done" && (
-            <p className="text-sm text-brand-600">Password updated successfully.</p>
+          {pwError && (
+            <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">
+              {pwError}
+            </p>
           )}
-          <button
-            type="submit"
-            disabled={pwStatus === "saving"}
-            className="btn-primary"
-          >
-            {pwStatus === "saving" ? "Saving…" : "Update password"}
-          </button>
+          {pwStatus === "done" && (
+            <p className="rounded-xl bg-brand-50 p-3 text-sm text-brand-700">
+              Password updated successfully.
+            </p>
+          )}
+          <Button type="submit" isLoading={pwStatus === "saving"}>
+            Update password
+          </Button>
         </form>
       </div>
 
-      <div className="card border-red-200 p-6 space-y-3">
-        <h2 className="text-lg font-semibold text-red-700">Danger Zone</h2>
-        <p className="text-sm text-zinc-600">
-          Signing out will end your current session on this device.
-        </p>
-        <button
-          type="button"
-          onClick={() => void signOut()}
-          className="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 transition-colors"
-        >
+      <div className="card border-red-200/50 p-6 sm:p-8">
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-red-700">Danger zone</h2>
+          <p className="mt-1 text-sm text-ink-muted">
+            Sign out of this device. You&apos;ll need to sign in again.
+          </p>
+        </div>
+        <Button variant="danger" onClick={() => void signOut()}>
           Sign out
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -98,11 +103,8 @@ function AccountContent() {
 
 export default function AccountSettingsPage() {
   return (
-    <main className="container max-w-2xl py-8">
-      <h1 className="mb-6 text-2xl font-semibold text-zinc-900">Account Settings</h1>
-      <AuthGate>
-        <AccountContent />
-      </AuthGate>
-    </main>
+    <AuthGate>
+      <AccountContent />
+    </AuthGate>
   );
 }
