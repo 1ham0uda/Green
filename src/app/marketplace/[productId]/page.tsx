@@ -2,21 +2,20 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { use } from "react";
 import { AddToCartButton } from "@/features/marketplace/components/add-to-cart-button";
 import { useProduct } from "@/features/marketplace/hooks/use-products";
 import { formatPrice } from "@/lib/utils/format";
 
 interface PageProps {
-  params: Promise<{ productId: string }>;
+  params: { productId: string };
 }
 
 export default function ProductDetailPage({ params }: PageProps) {
-  const { productId } = use(params);
+  const { productId } = params;
   const { data: product, isLoading, error } = useProduct(productId);
 
   return (
-    <main className="container max-w-4xl py-8">
+    <main className="container max-w-4xl py-8 pb-24 md:pb-8">
       {isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
       {error && <p className="text-sm text-red-600">Failed to load product.</p>}
       {!isLoading && !product && (
@@ -25,7 +24,7 @@ export default function ProductDetailPage({ params }: PageProps) {
 
       {product && (
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-          <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-brand-50">
+          <div className="relative w-full overflow-hidden rounded-2xl bg-surface-subtle" style={{ aspectRatio: "1/1" }}>
             {product.imageURL ? (
               <Image
                 src={product.imageURL}
@@ -35,35 +34,36 @@ export default function ProductDetailPage({ params }: PageProps) {
                 className="object-cover"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-5xl">
-                🛒
+              <div className="flex h-full w-full items-center justify-center text-ink-subtle">
+                <span className="font-serif text-5xl italic text-ink-subtle">?</span>
               </div>
             )}
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
-              <h1 className="text-2xl font-semibold text-zinc-900">
+              <p className="eyebrow mb-2">
+                <Link href={`/u/${product.vendorId}`} className="hover:text-ink transition-colors">
+                  {product.vendorDisplayName}
+                </Link>
+              </p>
+              <h1 className="font-serif text-[28px] font-normal leading-tight tracking-[-0.02em] text-ink">
                 {product.name}
               </h1>
-              <Link
-                href={`/u/${product.vendorId}`}
-                className="text-sm text-zinc-500 hover:text-brand-700"
-              >
-                by {product.vendorDisplayName}
-              </Link>
             </div>
 
-            <p className="text-2xl font-semibold text-brand-700">
+            <p className="tabular-nums font-sans text-[24px] font-medium text-ink">
               {formatPrice(product.price, product.currency)}
             </p>
 
             {product.description && (
-              <p className="text-sm text-zinc-700">{product.description}</p>
+              <p className="font-sans text-[14px] leading-relaxed text-ink-soft">
+                {product.description}
+              </p>
             )}
 
-            <p className="text-sm text-zinc-600">
-              Stock: <strong>{product.stock}</strong>
+            <p className="eyebrow">
+              {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
             </p>
 
             <AddToCartButton product={product} />

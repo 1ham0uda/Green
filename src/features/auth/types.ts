@@ -10,6 +10,7 @@ export interface UserProfile {
   /** Unique @handle — also exposed as `username` in the UI */
   handle: string;
   photoURL: string | null;
+  coverPhotoURL: string | null;
   bio: string;
   role: UserRole;
   isVerified: boolean;
@@ -19,6 +20,10 @@ export interface UserProfile {
   followerCount: number;
   followingCount: number;
   postCount: number;
+  // Location — required at signup
+  country: string;
+  governorate: string;
+  city: string;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
 }
@@ -30,6 +35,9 @@ export interface SignUpInput {
   /** Unique username — stored as `handle` in Firestore */
   username: string;
   role: "user" | "business";
+  country: string;
+  governorate: string;
+  city: string;
 }
 
 export interface SignInInput {

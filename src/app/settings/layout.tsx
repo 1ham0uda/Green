@@ -16,18 +16,16 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <main className="container max-w-5xl py-6 sm:py-10">
-      <div className="mb-8">
-        <h1 className="text-display-sm font-bold tracking-tight text-ink">
+    <main className="container max-w-5xl pb-24 md:pb-0">
+      <div className="py-5">
+        <p className="eyebrow">Account</p>
+        <h1 className="font-serif text-[28px] font-normal leading-tight tracking-[-0.02em] text-ink">
           Settings
         </h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          Manage your profile, account, and preferences.
-        </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[220px_1fr]">
-        <nav className="card h-fit overflow-hidden p-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[200px_1fr]">
+        <nav className="h-fit rounded-2xl border border-surface-border bg-surface p-1.5">
           {NAV.map((item) => {
             const Ico = item.icon;
             const active = pathname === item.href;
@@ -36,13 +34,13 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-2.5 rounded-xl px-3 py-2 font-sans text-[13px] font-medium transition-colors",
                   active
-                    ? "bg-brand-50 text-brand-700"
+                    ? "bg-surface-subtle text-ink"
                     : "text-ink-muted hover:bg-surface-hover hover:text-ink"
                 )}
               >
-                <Ico size={16} />
+                <Ico size={15} />
                 {item.label}
               </Link>
             );

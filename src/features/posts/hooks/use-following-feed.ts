@@ -38,8 +38,17 @@ function mapPost(d: QueryDocumentSnapshot): Post {
     authorPhotoURL: data.authorPhotoURL ?? null,
     authorIsVerified: data.authorIsVerified ?? false,
     caption: data.caption,
-    imageURL: data.imageURL,
+    imageURLs: Array.isArray(data.imageURLs) && data.imageURLs.length > 0
+      ? (data.imageURLs as string[])
+      : data.imageURL
+      ? [data.imageURL as string]
+      : [],
     plantId: data.plantId ?? null,
+    status: (data.status as Post["status"]) ?? "approved",
+    rejectionReason: (data.rejectionReason as string | null) ?? null,
+    country: (data.country as string) ?? "",
+    governorate: (data.governorate as string) ?? "",
+    city: (data.city as string) ?? "",
     likeCount: data.likeCount ?? 0,
     commentCount: data.commentCount ?? 0,
     createdAt: data.createdAt ?? null,
@@ -60,6 +69,7 @@ async function fetchFollowingFeed(
   const base = query(
     collection(firestore, COLLECTIONS.posts),
     where("authorId", "in", followingIds),
+    where("status", "==", "approved"),
     orderBy("createdAt", "desc"),
     limit(pageSize)
   );
@@ -68,6 +78,7 @@ async function fetchFollowingFeed(
     ? query(
         collection(firestore, COLLECTIONS.posts),
         where("authorId", "in", followingIds),
+        where("status", "==", "approved"),
         orderBy("createdAt", "desc"),
         startAfter(cursor),
         limit(pageSize)

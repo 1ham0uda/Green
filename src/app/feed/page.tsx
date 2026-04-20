@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { FeedList } from "@/features/posts/components/feed-list";
 import { FollowingFeedList } from "@/features/posts/components/following-feed-list";
+import { StoryBar } from "@/features/stories/components/story-bar";
 import { useAuth } from "@/features/auth/hooks/use-auth";
-import { Tabs } from "@/components/ui/tabs";
 import { Icon } from "@/components/ui/icon";
 
 type Tab = "all" | "following";
@@ -15,36 +15,45 @@ export default function FeedPage() {
   const [tab, setTab] = useState<Tab>("all");
 
   return (
-    <main className="container max-w-2xl py-6 sm:py-10">
-      <div className="mb-6 flex items-end justify-between gap-4">
+    <main className="mx-auto w-full max-w-[640px] pb-24 md:pb-0">
+      {/* Eyebrow header */}
+      <div className="flex items-center justify-between px-4 pb-3 pt-5">
         <div>
-          <h1 className="text-display-sm font-bold tracking-tight text-ink">
-            Your feed
+          <p className="eyebrow">Community</p>
+          <h1 className="font-serif text-[28px] font-normal leading-tight tracking-[-0.02em] text-ink">
+            Your Feed
           </h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            Fresh from gardeners across the community.
-          </p>
         </div>
         <Link
           href="/posts/new"
-          className="btn-primary inline-flex items-center gap-1.5"
+          className="btn-primary btn-sm flex items-center gap-1.5"
         >
-          <Icon.Plus size={16} />
-          <span className="hidden sm:inline">New post</span>
+          <Icon.Plus size={14} />
+          Post
         </Link>
       </div>
 
+      <StoryBar />
+
       {user && (
-        <div className="mb-6">
-          <Tabs
-            variant="pill"
-            tabs={[
-              { id: "all", label: "For You", icon: <Icon.Sparkle size={14} /> },
-              { id: "following", label: "Following", icon: <Icon.Users size={14} /> },
-            ]}
-            active={tab}
-            onChange={(id) => setTab(id as Tab)}
-          />
+        <div className="mb-0 flex gap-0 border-b border-surface-border px-4">
+          {(["all", "following"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className={[
+                "relative pb-3 pt-2 font-sans text-[13px] font-medium transition-colors",
+                t === "all" ? "mr-6" : "",
+                tab === t ? "text-ink" : "text-ink-subtle hover:text-ink-muted",
+              ].join(" ")}
+            >
+              {t === "all" ? "For You" : "Following"}
+              {tab === t && (
+                <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-ink" />
+              )}
+            </button>
+          ))}
         </div>
       )}
 

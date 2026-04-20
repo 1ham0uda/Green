@@ -1,10 +1,9 @@
 import {
-  addDoc,
   collection,
   getDocs,
   limit,
-  orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   updateDoc,
   doc,
@@ -19,10 +18,20 @@ import type {
   Order,
   OrderLine,
   OrderStatus,
+  ShippingAddress,
 } from "../types";
 import { saveCart } from "./cart-service";
 
 const ORDERS = COLLECTIONS.orders;
+
+const EMPTY_SHIPPING: ShippingAddress = {
+  recipientName: "",
+  phone: "",
+  governorate: "",
+  city: "",
+  addressLine: "",
+  notes: "",
+};
 
 function mapOrder(snap: QueryDocumentSnapshot | DocumentSnapshot): Order {
   const data = snap.data();
@@ -33,8 +42,13 @@ function mapOrder(snap: QueryDocumentSnapshot | DocumentSnapshot): Order {
     vendorId: data.vendorId,
     lines: (data.lines ?? []) as OrderLine[],
     subtotal: data.subtotal ?? 0,
-    currency: data.currency ?? "USD",
+    currency: data.currency ?? "EGP",
     status: data.status ?? "pending",
+    paymentMethod: data.paymentMethod ?? "cod",
+    shippingAddress: {
+      ...EMPTY_SHIPPING,
+      ...(data.shippingAddress ?? {}),
+    },
     createdAt: data.createdAt ?? null,
     updatedAt: data.updatedAt ?? null,
   };
@@ -50,10 +64,11 @@ function groupByVendor(items: CartItem[]): Map<string, CartItem[]> {
   return map;
 }
 
-export async function placeMockOrder(
+export async function placeCodOrder(
   buyerId: string,
   items: CartItem[],
-  currency = "USD"
+  shippingAddress: ShippingAddress,
+  currency = "EGP"
 ): Promise<Order[]> {
   if (items.length === 0) throw new Error("Cart is empty");
 
@@ -82,50 +97,91 @@ export async function placeMockOrder(
       subtotal,
       currency,
       status: "pending" as OrderStatus,
+      paymentMethod: "cod" as const,
+      shippingAddress,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
 
-    const created = await addDoc(collection(firestore, ORDERS), payload);
+    const productRefs = vendorItems.map((item) =>
+      doc(firestore, COLLECTIONS.products, item.productId)
+    );
+    const orderRef = doc(collection(firestore, ORDERS));
+
+    // Transaction reads product docs to validate availability and stock at the
+    // moment of order creation, then atomically writes the order document.
+    // Stock decrement must be handled server-side (Cloud Function on order create)
+    // because the buyer role cannot write to product documents per security rules.
+    await runTransaction(firestore, async (tx) => {
+      const productSnaps = await Promise.all(productRefs.map((r) => tx.get(r)));
+
+      for (let i = 0; i < vendorItems.length; i++) {
+        const snap = productSnaps[i];
+        const item = vendorItems[i];
+        if (!snap.exists()) {
+          throw new Error(`Product "${item.name}" is no longer available.`);
+        }
+        const data = snap.data();
+        if (data.status !== "approved" || data.isActive === false) {
+          throw new Error(`Product "${item.name}" is not currently available.`);
+        }
+        const currentStock: number = data.stock ?? 0;
+        if (currentStock < item.quantity) {
+          throw new Error(
+            `"${item.name}" only has ${currentStock} unit(s) in stock.`
+          );
+        }
+      }
+
+      tx.set(orderRef, payload);
+    });
+
     orders.push({
-      id: created.id,
+      id: orderRef.id,
       buyerId,
       vendorId,
       lines,
       subtotal,
       currency,
       status: "pending",
+      paymentMethod: "cod",
+      shippingAddress,
       createdAt: null,
       updatedAt: null,
     });
   }
 
-  // Clear the buyer's cart after a successful mock checkout.
   await saveCart(buyerId, []);
 
   return orders;
+}
+
+function sortByCreatedDesc(orders: Order[]): Order[] {
+  return orders.sort((a, b) => {
+    const ta = a.createdAt?.toMillis() ?? 0;
+    const tb = b.createdAt?.toMillis() ?? 0;
+    return tb - ta;
+  });
 }
 
 export async function fetchBuyerOrders(buyerId: string): Promise<Order[]> {
   const q = query(
     collection(firestore, ORDERS),
     where("buyerId", "==", buyerId),
-    orderBy("createdAt", "desc"),
     limit(50)
   );
   const snap = await getDocs(q);
-  return snap.docs.map(mapOrder);
+  return sortByCreatedDesc(snap.docs.map(mapOrder));
 }
 
 export async function fetchVendorOrders(vendorId: string): Promise<Order[]> {
   const q = query(
     collection(firestore, ORDERS),
     where("vendorId", "==", vendorId),
-    orderBy("createdAt", "desc"),
     limit(100)
   );
   const snap = await getDocs(q);
-  return snap.docs.map(mapOrder);
+  return sortByCreatedDesc(snap.docs.map(mapOrder));
 }
 
 export async function updateOrderStatus(

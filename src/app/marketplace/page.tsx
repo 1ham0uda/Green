@@ -15,42 +15,30 @@ export default function MarketplacePage() {
   const isBusiness = user?.role === "business" || user?.role === "admin";
 
   return (
-    <main className="container py-6 sm:py-10">
-      <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div className="flex-1">
-          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 ring-1 ring-inset ring-brand-100">
-            <Icon.Sparkle size={12} />
-            Curated by gardeners
-          </div>
-          <h1 className="text-display-md font-bold tracking-tight text-ink">
+    <main className="container max-w-6xl pb-24 md:pb-0">
+      <header className="flex items-center justify-between gap-4 py-5">
+        <div>
+          <p className="eyebrow">Shop</p>
+          <h1 className="font-serif text-[28px] font-normal leading-tight tracking-[-0.02em] text-ink">
             Marketplace
           </h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            Seeds, tools, and gear from local vendors and growers.
-          </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/cart"
-            className="btn-secondary inline-flex items-center gap-1.5"
-          >
-            <Icon.Cart size={16} />
-            View cart
+        <div className="flex items-center gap-2">
+          <Link href="/cart" className="btn-secondary btn-sm flex items-center gap-1.5">
+            <Icon.Cart size={15} />
+            Cart
           </Link>
           {isBusiness && (
-            <Link
-              href="/vendor/products"
-              className="btn-primary inline-flex items-center gap-1.5"
-            >
-              <Icon.ShoppingBag size={16} />
-              Vendor dashboard
+            <Link href="/vendor/products" className="btn-primary btn-sm flex items-center gap-1.5">
+              <Icon.ShoppingBag size={15} />
+              My shop
             </Link>
           )}
         </div>
       </header>
 
       {isLoading && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:gap-6">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <SkeletonProductCard key={i} />
           ))}

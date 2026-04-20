@@ -48,10 +48,12 @@ export default function NewCompetitionPage() {
   }
 
   return (
-    <div className="card max-w-2xl p-6">
-      <h2 className="mb-6 text-lg font-semibold text-zinc-900">
-        Create competition
-      </h2>
+    <div className="max-w-2xl space-y-5">
+      <div>
+        <p className="eyebrow mb-1">Admin</p>
+        <h2 className="font-serif text-[24px] font-normal tracking-[-0.02em] text-ink">Create Competition</h2>
+      </div>
+      <div className="rounded-2xl border border-surface-border bg-surface p-6">
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {(
@@ -60,7 +62,7 @@ export default function NewCompetitionPage() {
           ] as const
         ).map(({ id, label }) => (
           <div key={id} className="space-y-1">
-            <label htmlFor={id} className="text-sm font-medium text-zinc-800">
+            <label htmlFor={id} className="label">
               {label}
             </label>
             <input
@@ -92,7 +94,7 @@ export default function NewCompetitionPage() {
           ] as const
         ).map(({ id, label, value, setter }) => (
           <div key={id} className="space-y-1">
-            <label htmlFor={id} className="text-sm font-medium text-zinc-800">
+            <label htmlFor={id} className="label">
               {label}
             </label>
             <textarea
@@ -108,7 +110,7 @@ export default function NewCompetitionPage() {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label htmlFor="startsAt" className="text-sm font-medium text-zinc-800">
+            <label htmlFor="startsAt" className="label">
               Starts at
             </label>
             <input
@@ -121,7 +123,7 @@ export default function NewCompetitionPage() {
             />
           </div>
           <div className="space-y-1">
-            <label htmlFor="endsAt" className="text-sm font-medium text-zinc-800">
+            <label htmlFor="endsAt" className="label">
               Ends at
             </label>
             <input
@@ -149,6 +151,7 @@ export default function NewCompetitionPage() {
           {create.isPending ? "Creating…" : "Create competition"}
         </button>
       </form>
+      </div>
     </div>
   );
 }

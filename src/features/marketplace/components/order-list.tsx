@@ -67,6 +67,27 @@ export function OrderList({
               </li>
             ))}
           </ul>
+
+          {order.shippingAddress?.recipientName && (
+            <div className="mt-4 rounded-2xl bg-surface-muted p-4 text-sm">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                Delivery · {order.paymentMethod === "cod" ? "Cash on delivery" : "Paid"}
+              </p>
+              <p className="font-medium text-ink">
+                {order.shippingAddress.recipientName}
+              </p>
+              <p className="text-ink-muted">{order.shippingAddress.phone}</p>
+              <p className="text-ink-muted">
+                {order.shippingAddress.addressLine}, {order.shippingAddress.city},{" "}
+                {order.shippingAddress.governorate}
+              </p>
+              {order.shippingAddress.notes && (
+                <p className="mt-1 text-xs italic text-ink-subtle">
+                  Note: {order.shippingAddress.notes}
+                </p>
+              )}
+            </div>
+          )}
         </article>
       ))}
     </div>

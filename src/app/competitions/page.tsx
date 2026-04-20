@@ -7,23 +7,29 @@ export default function CompetitionsPage() {
   const { data, isLoading, error } = useCompetitions();
 
   return (
-    <main className="container py-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-zinc-900">Competitions</h1>
-        <p className="text-sm text-zinc-500">
-          Weekly contests for the community. Submit a post, votes are based on
-          likes from other gardeners.
+    <main className="container max-w-5xl pb-24 md:pb-0">
+      <header className="py-5">
+        <p className="eyebrow">Community</p>
+        <h1 className="font-serif text-[28px] font-normal leading-tight tracking-[-0.02em] text-ink">
+          Competitions
+        </h1>
+        <p className="mt-1 font-sans text-[13px] text-ink-muted">
+          Weekly contests. Submit a post — votes are based on likes.
         </p>
       </header>
 
-      {isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
+      {isLoading && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="skeleton h-48 rounded-2xl" />
+          ))}
+        </div>
+      )}
 
-      {error && <p className="text-sm text-red-600">Failed to load competitions.</p>}
+      {error && <p className="font-sans text-[13px] text-red-600">Failed to load competitions.</p>}
 
       {data && data.length === 0 && (
-        <div className="card p-8 text-center text-sm text-zinc-500">
-          No competitions yet. Check back soon.
-        </div>
+        <p className="font-sans text-[13px] text-ink-muted">No competitions yet. Check back soon.</p>
       )}
 
       {data && data.length > 0 && (

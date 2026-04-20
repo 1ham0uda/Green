@@ -12,21 +12,24 @@ export default function AdminModerationPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-zinc-900">Content Moderation</h2>
+      <div>
+        <p className="eyebrow mb-1">Admin</p>
+        <h2 className="font-serif text-[24px] font-normal tracking-[-0.02em] text-ink">Content Moderation</h2>
+      </div>
 
-      <div className="flex gap-2 border-b border-surface-border">
+      <div className="flex gap-0 border-b border-surface-border">
         {(["reports", "log"] as const).map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium capitalize ${
-              tab === t
-                ? "border-b-2 border-brand-600 text-brand-600"
-                : "text-zinc-500 hover:text-zinc-700"
-            }`}
+            className={[
+              "relative mr-5 pb-3 pt-2 font-sans text-[13px] font-medium transition-colors",
+              tab === t ? "text-ink" : "text-ink-subtle hover:text-ink-muted",
+            ].join(" ")}
           >
             {t === "reports" ? `Open Reports (${reports?.length ?? 0})` : "Moderation Log"}
+            {tab === t && <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-ink" />}
           </button>
         ))}
       </div>

@@ -1,6 +1,5 @@
 "use client";
 
-import { use } from "react";
 import { CommentForm } from "@/features/posts/components/comment-form";
 import { CommentList } from "@/features/posts/components/comment-list";
 import { PostCard } from "@/features/posts/components/post-card";
@@ -13,41 +12,40 @@ import {
 } from "@/features/posts/hooks/use-comments";
 
 interface PageProps {
-  params: Promise<{ postId: string }>;
+  params: { postId: string };
 }
 
 export default function PostDetailPage({ params }: PageProps) {
-  const { postId } = use(params);
+  const { postId } = params;
   const { data: post, isLoading: postLoading } = usePostById(postId);
   const { data: comments, isLoading: commentsLoading } = useComments(postId);
 
   return (
-    <main className="container max-w-2xl py-6 sm:py-10">
+    <main className="mx-auto w-full max-w-[640px] pb-24 md:pb-0">
       {postLoading && <SkeletonPostCard />}
 
       {!postLoading && !post && (
-        <EmptyState
-          icon={<Icon.Flag size={22} />}
-          title="Post not found"
-          description="This post may have been deleted or never existed."
-        />
+        <div className="px-4 pt-10">
+          <EmptyState
+            icon={<Icon.Flag size={22} />}
+            title="Post not found"
+            description="This post may have been deleted or never existed."
+          />
+        </div>
       )}
 
       {post && (
-        <div className="space-y-6">
+        <div>
           <PostCard post={post} />
 
-          <section className="card space-y-5 p-6">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-ink">Comments</h2>
-              <span className="rounded-full bg-surface-subtle px-2 py-0.5 text-xs font-medium text-ink-muted">
-                {post.commentCount}
-              </span>
-            </div>
+          <section className="border-t border-surface-border px-4 py-5">
+            <p className="eyebrow mb-4">
+              {post.commentCount > 0 ? `${post.commentCount} comments` : "Comments"}
+            </p>
             <CommentForm postId={post.id} postAuthorId={post.authorId} />
 
             {commentsLoading ? (
-              <div className="space-y-1 pt-2">
+              <div className="mt-4 space-y-1">
                 <SkeletonRow />
                 <SkeletonRow />
               </div>

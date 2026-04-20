@@ -4,12 +4,17 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SkeletonPostCard } from "@/components/ui/skeleton";
 import { Icon } from "@/components/ui/icon";
+import { AdCard } from "@/features/ads/components/ad-card";
+import { useAdsForFeed } from "@/features/ads/hooks/use-ads";
 import { useFeed } from "../hooks/use-feed";
 import { PostCard } from "./post-card";
+
+const AD_INTERVAL = 5;
 
 export function FeedList() {
   const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useFeed();
+  const { data: ads } = useAdsForFeed();
 
   if (isLoading) {
     return (
@@ -44,8 +49,15 @@ export function FeedList() {
 
   return (
     <div className="space-y-6">
-      {posts.map((post) => (
-        <PostCard key={post.id} post={post} />
+      {posts.map((post, i) => (
+        <div key={post.id}>
+          <PostCard post={post} />
+          {ads && ads.length > 0 && (i + 1) % AD_INTERVAL === 0 && (
+            <div className="mt-6">
+              <AdCard ad={ads[Math.floor(i / AD_INTERVAL) % ads.length]} />
+            </div>
+          )}
+        </div>
       ))}
 
       {hasNextPage && (

@@ -9,10 +9,10 @@ import { useAuth } from "@/features/auth/hooks/use-auth";
 import {
   fetchBuyerOrders,
   fetchVendorOrders,
-  placeMockOrder,
+  placeCodOrder,
   updateOrderStatus,
 } from "../services/order-service";
-import type { CartItem, OrderStatus } from "../types";
+import type { PlaceOrderInput, OrderStatus } from "../types";
 
 export function useBuyerOrders() {
   const { user } = useAuth();
@@ -32,14 +32,14 @@ export function useVendorOrders() {
   });
 }
 
-export function usePlaceMockOrder() {
+export function usePlaceCodOrder() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (items: CartItem[]) => {
+    mutationFn: ({ items, shippingAddress }: PlaceOrderInput) => {
       if (!user) throw new Error("Must be signed in");
-      return placeMockOrder(user.uid, items);
+      return placeCodOrder(user.uid, items, shippingAddress);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });

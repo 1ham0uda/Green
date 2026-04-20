@@ -5,12 +5,15 @@ export const metadata = { title: "New post" };
 
 export default function NewPostPage() {
   return (
-    <main className="container max-w-2xl py-8">
+    <main className="mx-auto w-full max-w-[640px] pb-24 md:pb-0">
       <AuthGate>
-        <div className="card p-6">
-          <h1 className="mb-6 text-xl font-semibold text-zinc-900">
-            Share a new post
+        <div className="px-4 pt-5 pb-3">
+          <p className="eyebrow">Create</p>
+          <h1 className="font-serif text-[28px] font-normal leading-tight tracking-[-0.02em] text-ink">
+            New Post
           </h1>
+        </div>
+        <div className="border-t border-surface-border px-4 pt-5">
           <CreatePostForm />
         </div>
       </AuthGate>

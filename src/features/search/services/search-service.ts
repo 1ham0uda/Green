@@ -37,9 +37,11 @@ export async function searchPosts(term: string, pageLimit = 20): Promise<Post[]>
   const lower = term.toLowerCase().trim();
   if (lower.length < 2) return [];
 
-  // Search by authorHandle prefix
+  // Search by authorHandle prefix; status filter is required so Firestore
+  // security rules (which restrict non-approved posts) don't reject the query.
   const q = query(
     collection(firestore, COLLECTIONS.posts),
+    where("status", "==", "approved"),
     where("authorHandle", ">=", lower),
     where("authorHandle", "<=", lower + "\uf8ff"),
     orderBy("authorHandle"),
@@ -57,8 +59,17 @@ export async function searchPosts(term: string, pageLimit = 20): Promise<Post[]>
       authorPhotoURL: data.authorPhotoURL ?? null,
       authorIsVerified: data.authorIsVerified ?? false,
       caption: data.caption,
-      imageURL: data.imageURL,
+      imageURLs: Array.isArray(data.imageURLs) && data.imageURLs.length > 0
+        ? (data.imageURLs as string[])
+        : data.imageURL
+        ? [data.imageURL as string]
+        : [],
       plantId: data.plantId ?? null,
+      status: (data.status as Post["status"]) ?? "approved",
+      rejectionReason: (data.rejectionReason as string | null) ?? null,
+      country: (data.country as string) ?? "",
+      governorate: (data.governorate as string) ?? "",
+      city: (data.city as string) ?? "",
       likeCount: data.likeCount ?? 0,
       commentCount: data.commentCount ?? 0,
       createdAt: data.createdAt ?? null,
@@ -92,7 +103,7 @@ export async function searchProducts(
       name: data.name,
       description: data.description ?? "",
       price: data.price,
-      currency: data.currency ?? "USD",
+      currency: data.currency ?? "EGP",
       imageURL: data.imageURL ?? null,
       stock: data.stock ?? 0,
       isActive: data.isActive ?? false,

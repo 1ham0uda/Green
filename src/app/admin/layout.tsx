@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AdminGate } from "@/features/admin/components/admin-gate";
-import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/utils/cn";
 
@@ -15,8 +14,10 @@ const NAV = [
   { href: "/admin/verification", label: "Verification", icon: Icon.Check },
   { href: "/admin/competitions", label: "Competitions", icon: Icon.Trophy },
   { href: "/admin/marketplace", label: "Marketplace", icon: Icon.ShoppingBag },
+  { href: "/admin/ads", label: "Ads", icon: Icon.Megaphone },
   { href: "/admin/moderation", label: "Moderation", icon: Icon.Shield },
   { href: "/admin/logs", label: "Logs", icon: Icon.Eye },
+  { href: "/admin/announcements", label: "Announcements", icon: Icon.Bell },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
@@ -25,25 +26,22 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <AdminGate>
       <div className="container py-6 sm:py-10">
-        <div className="mb-8 flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-red-600 text-white shadow-soft">
-            <Icon.Shield size={18} />
+        <div className="mb-6 flex items-center gap-3 py-2">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600">
+            <Icon.Shield size={16} />
           </span>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-ink">Control Panel</h1>
-              <Badge variant="red" dot>
-                Admin
-              </Badge>
-            </div>
-            <p className="text-xs text-ink-muted">
-              Manage your platform with care.
+            <h1 className="font-serif text-[22px] font-normal leading-tight tracking-[-0.02em] text-ink">
+              Control Panel
+            </h1>
+            <p className="font-sans text-[11px] uppercase tracking-eyebrow text-ink-muted">
+              Admin
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[240px_1fr]">
-          <nav className="card sticky top-20 h-fit overflow-hidden p-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[220px_1fr]">
+          <nav className="sticky top-20 h-fit rounded-2xl border border-surface-border bg-surface p-1.5">
             {NAV.map((item) => {
               const Ico = item.icon;
               const active =
@@ -54,13 +52,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
+                    "flex items-center gap-2.5 rounded-xl px-3 py-2 font-sans text-[13px] font-medium transition-colors",
                     active
-                      ? "bg-brand-50 text-brand-700"
+                      ? "bg-surface-subtle text-ink"
                       : "text-ink-muted hover:bg-surface-hover hover:text-ink"
                   )}
                 >
-                  <Ico size={16} />
+                  <Ico size={15} />
                   {item.label}
                 </Link>
               );

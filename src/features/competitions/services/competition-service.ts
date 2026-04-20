@@ -1,5 +1,4 @@
 import {
-  addDoc,
   collection,
   doc,
   getDoc,
@@ -155,22 +154,22 @@ export async function submitEntry(
     userId: user.uid,
     userHandle: user.handle,
     userDisplayName: user.displayName,
-    postImageURL: post.imageURL,
+    postImageURL: post.imageURLs[0] ?? null,
     postCaption: post.caption,
-    voteCount: post.likeCount,
+    voteCount: 0,
     createdAt: serverTimestamp(),
   };
 
-  const created = await addDoc(entriesRef, payload);
-
-  // Increment competition entry counter.
+  // Create entry and increment counter atomically.
+  const newEntryRef = doc(entriesRef);
   await runTransaction(firestore, async (tx) => {
     const comp = await tx.get(competitionRef);
-    if (!comp.exists()) return;
+    if (!comp.exists()) throw new Error("Competition not found");
+    tx.set(newEntryRef, payload);
     tx.update(competitionRef, { entryCount: increment(1) });
   });
 
-  const snap = await getDoc(created);
+  const snap = await getDoc(newEntryRef);
   return mapEntry(snap);
 }
 

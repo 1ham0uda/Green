@@ -1,16 +1,21 @@
 import type { Timestamp } from "firebase/firestore";
 
+export type ProductStatus = "pending" | "approved" | "rejected";
+
 export interface Product {
   id: string;
   vendorId: string;
   vendorDisplayName: string;
   name: string;
+  nameLower: string;
   description: string;
   price: number;
   currency: string;
   imageURL: string | null;
   stock: number;
   isActive: boolean;
+  status: ProductStatus;
+  rejectionReason: string | null;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
 }
@@ -50,6 +55,17 @@ export interface Cart {
 
 export type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
 
+export type PaymentMethod = "cod";
+
+export interface ShippingAddress {
+  recipientName: string;
+  phone: string;
+  governorate: string;
+  city: string;
+  addressLine: string;
+  notes: string;
+}
+
 export interface OrderLine {
   productId: string;
   vendorId: string;
@@ -67,6 +83,13 @@ export interface Order {
   subtotal: number;
   currency: string;
   status: OrderStatus;
+  paymentMethod: PaymentMethod;
+  shippingAddress: ShippingAddress;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
+}
+
+export interface PlaceOrderInput {
+  items: CartItem[];
+  shippingAddress: ShippingAddress;
 }

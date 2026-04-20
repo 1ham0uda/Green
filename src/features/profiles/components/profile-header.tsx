@@ -1,10 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { VerificationBadge } from "@/features/verification/components/verification-badge";
 import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import type { PublicProfile } from "../types";
 import {
@@ -29,85 +28,91 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
   );
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-surface-border bg-surface shadow-card">
-      {/* Cover gradient */}
-      <div className="h-28 bg-gradient-to-br from-brand-400 via-brand-500 to-brand-700 sm:h-36" />
+    <section className="border-b border-surface-border bg-surface">
+      {/* Cover */}
+      <div className="relative h-28 sm:h-40">
+        {profile.coverPhotoURL ? (
+          <Image
+            src={profile.coverPhotoURL}
+            alt=""
+            fill
+            sizes="(max-width: 768px) 100vw, 896px"
+            className="object-cover"
+            priority
+          />
+        ) : (
+          <div className="h-full w-full bg-surface-subtle" />
+        )}
+      </div>
 
-      <div className="px-6 pb-6 sm:px-8">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div className="-mt-14 flex flex-col items-start gap-4 sm:-mt-16 sm:flex-row sm:items-end">
-            <div className="rounded-full bg-surface p-1 shadow-card">
-              <Avatar
-                src={profile.photoURL}
-                name={profile.displayName}
-                size="2xl"
-              />
-            </div>
-
-            <div className="space-y-1.5 sm:pb-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-ink">
-                  {profile.displayName}
-                  {profile.isVerified && <VerificationBadge size="md" />}
-                </h1>
-                {profile.role === "business" && (
-                  <Badge variant="blue">
-                    <Icon.ShoppingBag size={12} />
-                    Business
-                  </Badge>
-                )}
-                {profile.role === "admin" && (
-                  <Badge variant="red">
-                    <Icon.Shield size={12} />
-                    Admin
-                  </Badge>
-                )}
-              </div>
-              <p className="text-sm text-ink-muted">@{profile.handle}</p>
-            </div>
+      <div className="px-5 pb-5 sm:px-6">
+        {/* Avatar row */}
+        <div className="-mt-10 mb-3 flex items-end justify-between">
+          <div className="rounded-full border-4 border-surface bg-surface">
+            <Avatar src={profile.photoURL} name={profile.displayName} size="2xl" />
           </div>
 
-          <div className="flex items-center gap-2 sm:pb-2">
+          <div className="flex items-center gap-2 pb-1">
             {!isSelf && viewerId && (
               <>
                 {following ? (
-                  <Button
-                    variant="secondary"
+                  <button
+                    type="button"
                     onClick={() => unfollow.mutate()}
-                    isLoading={unfollow.isPending}
+                    disabled={unfollow.isPending}
+                    className="btn-secondary btn-sm"
                   >
                     Following
-                  </Button>
+                  </button>
                 ) : (
-                  <Button
+                  <button
+                    type="button"
                     onClick={() => follow.mutate()}
-                    isLoading={follow.isPending}
+                    disabled={follow.isPending}
+                    className="btn-primary btn-sm"
                   >
                     Follow
-                  </Button>
+                  </button>
                 )}
-                <a href="#" className="btn-secondary">
-                  <Icon.MessageCircle size={16} />
+                <a href="#" className="btn-secondary btn-sm aspect-square !px-0 flex items-center justify-center w-8 h-8">
+                  <Icon.MessageCircle size={15} />
                 </a>
               </>
             )}
-
             {isSelf && (
-              <a href="/settings/profile" className="btn-secondary">
-                <Icon.Settings size={16} />
+              <a href="/settings/profile" className="btn-secondary btn-sm flex items-center gap-1.5">
+                <Icon.Settings size={14} />
                 Edit profile
               </a>
             )}
           </div>
         </div>
 
+        {/* Name + handle */}
+        <div className="space-y-0.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="font-serif text-[24px] font-normal leading-tight tracking-[-0.02em] text-ink">
+              {profile.displayName}
+            </h1>
+            {profile.isVerified && <VerificationBadge size="sm" />}
+            {profile.role === "business" && (
+              <span className="badge badge-zinc">Business</span>
+            )}
+            {profile.role === "admin" && (
+              <span className="badge badge-red">Admin</span>
+            )}
+          </div>
+          <p className="font-sans text-[13px] text-ink-muted">@{profile.handle}</p>
+        </div>
+
         {profile.bio && (
-          <p className="mt-5 max-w-2xl text-pretty text-sm leading-relaxed text-ink">
+          <p className="mt-3 font-sans text-[14px] leading-relaxed text-pretty text-ink-soft">
             {profile.bio}
           </p>
         )}
 
-        <div className="mt-5 grid grid-cols-3 divide-x divide-surface-border rounded-2xl border border-surface-border bg-surface-muted">
+        {/* Stats */}
+        <div className="mt-4 flex gap-5">
           <Stat label="Posts" value={profile.postCount} />
           <Stat label="Followers" value={profile.followerCount} />
           <Stat label="Following" value={profile.followingCount} />
@@ -119,11 +124,11 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="flex flex-col items-center py-3">
-      <span className="text-lg font-bold tabular-nums text-ink">{value}</span>
-      <span className="text-xs uppercase tracking-wider text-ink-muted">
-        {label}
+    <div className="flex flex-col">
+      <span className="tabular-nums font-sans text-[15px] font-medium text-ink">
+        {value.toLocaleString()}
       </span>
+      <span className="eyebrow">{label}</span>
     </div>
   );
 }

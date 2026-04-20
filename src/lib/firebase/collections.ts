@@ -14,6 +14,15 @@ export const COLLECTIONS = {
   reports: "reports",
   moderationLogs: "moderationLogs",
   verificationRequests: "verificationRequests",
+  highlights: "highlights",
+  announcements: "announcements",
+  stories: "stories",
+  groups: "groups",
+  groupMembers: "groupMembers",
+  groupPosts: "groupPosts",
+  ads: "ads",
+  adImpressions: "adImpressions",
+  handles: "handles",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

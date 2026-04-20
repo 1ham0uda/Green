@@ -20,11 +20,12 @@ import type { PublicProfile, UpdateProfileInput } from "../types";
 import type { UserProfile } from "@/features/auth/types";
 import { FirestorePatch } from "@/types/firestore";
 import { createNotification } from "@/features/notifications/services/notification-service";
+import { mapProfile } from "@/features/auth/services/auth-service";
 
 export async function getProfileById(uid: string): Promise<PublicProfile | null> {
   const ref = doc(firestore, COLLECTIONS.users, uid);
   const snap = await getDoc(ref);
-  return snap.exists() ? (snap.data() as UserProfile) : null;
+  return snap.exists() ? mapProfile(snap.data()) : null;
 }
 
 export async function getProfileByHandle(
@@ -37,7 +38,7 @@ export async function getProfileByHandle(
   );
   const snap = await getDocs(q);
   if (snap.empty) return null;
-  return snap.docs[0].data() as UserProfile;
+  return mapProfile(snap.docs[0].data());
 }
 
 export async function updateProfile(
@@ -57,6 +58,11 @@ export async function updateProfile(
     patch.photoURL = await uploadImage(path, input.avatarFile);
   }
 
+  if (input.coverFile) {
+    const path = buildUserScopedPath("covers", uid, input.coverFile.name);
+    patch.coverPhotoURL = await uploadImage(path, input.coverFile);
+  }
+
   const ref = doc(firestore, COLLECTIONS.users, uid);
   await updateDoc(ref, patch);
 }
@@ -68,7 +74,8 @@ function buildFollowId(followerId: string, followingId: string): string {
 export async function followUser(
   followerId: string,
   followerHandle: string,
-  followingId: string
+  followingId: string,
+  followerDisplayName?: string
 ): Promise<void> {
   if (followerId === followingId) {
     throw new Error("Cannot follow yourself");
@@ -99,7 +106,7 @@ export async function followUser(
       toUserId: followingId,
       fromUserId: followerId,
       fromUserHandle: followerHandle,
-      fromUserDisplayName: followerHandle,
+      fromUserDisplayName: followerDisplayName ?? followerHandle,
       type: "follow",
     });
   }

@@ -40,10 +40,10 @@ function AccountContent() {
 
   return (
     <div className="space-y-6">
-      <div className="card p-6 sm:p-8">
+      <div className="rounded-2xl border border-surface-border bg-surface p-6 sm:p-8">
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-ink">Change password</h2>
-          <p className="mt-1 text-sm text-ink-muted">
+          <h2 className="font-serif text-[22px] font-normal tracking-[-0.02em] text-ink">Change Password</h2>
+          <p className="mt-1 font-sans text-[13px] text-ink-muted">
             Update your password. You&apos;ll stay signed in on this device.
           </p>
         </div>
@@ -86,10 +86,10 @@ function AccountContent() {
         </form>
       </div>
 
-      <div className="card border-red-200/50 p-6 sm:p-8">
+      <div className="mt-4 rounded-2xl border border-red-200/60 bg-surface p-6 sm:p-8">
         <div className="mb-4">
-          <h2 className="text-xl font-semibold text-red-700">Danger zone</h2>
-          <p className="mt-1 text-sm text-ink-muted">
+          <h2 className="font-serif text-[22px] font-normal tracking-[-0.02em] text-red-700">Danger zone</h2>
+          <p className="mt-1 font-sans text-[13px] text-ink-muted">
             Sign out of this device. You&apos;ll need to sign in again.
           </p>
         </div>

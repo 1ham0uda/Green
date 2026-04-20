@@ -47,8 +47,9 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight text-ink">Users</h2>
-        <p className="text-sm text-ink-muted">
+        <p className="eyebrow mb-1">Admin</p>
+        <h2 className="font-serif text-[24px] font-normal tracking-[-0.02em] text-ink">Users</h2>
+        <p className="mt-0.5 font-sans text-[13px] text-ink-muted">
           {isSearching
             ? `${searchResults?.length ?? 0} results for "${searchTerm}"`
             : `${allUsers?.length ?? 0} total users`}

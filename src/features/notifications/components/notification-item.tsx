@@ -15,6 +15,12 @@ function message(n: Notification): string {
       ? `commented: "${n.commentBody.slice(0, 60)}"`
       : "commented on your post";
   if (n.type === "follow") return "started following you";
+  if (n.type === "post_approved") return n.message ?? "Your post was approved.";
+  if (n.type === "post_rejected") return `Post rejected: ${n.message ?? ""}`;
+  if (n.type === "product_approved") return n.message ?? "Your product was approved.";
+  if (n.type === "product_rejected") return `Product rejected: ${n.message ?? ""}`;
+  if (n.type === "ad_approved") return n.message ?? "Your ad was approved.";
+  if (n.type === "ad_rejected") return `Ad rejected: ${n.message ?? ""}`;
   return "";
 }
 
@@ -39,6 +45,10 @@ function typeIcon(n: Notification) {
     return <Icon.MessageCircle size={12} className="text-blue-500" />;
   if (n.type === "follow")
     return <Icon.User size={12} className="text-brand-600" />;
+  if (n.type === "post_approved" || n.type === "product_approved" || n.type === "ad_approved")
+    return <Icon.Check size={12} className="text-green-500" />;
+  if (n.type === "post_rejected" || n.type === "product_rejected" || n.type === "ad_rejected")
+    return <Icon.X size={12} className="text-red-500" />;
   return null;
 }
 
@@ -48,12 +58,23 @@ interface Props {
 }
 
 export function NotificationItem({ notification: n, onRead }: Props) {
-  const href =
-    n.type === "follow"
-      ? `/u/${n.fromUserHandle}`
-      : n.postId
+  const isModeration =
+    n.type === "post_approved" ||
+    n.type === "post_rejected" ||
+    n.type === "product_approved" ||
+    n.type === "product_rejected" ||
+    n.type === "ad_approved" ||
+    n.type === "ad_rejected";
+
+  const href = isModeration
+    ? n.postId
       ? `/posts/${n.postId}`
-      : "#";
+      : "#"
+    : n.type === "follow"
+    ? `/u/${n.fromUserHandle}`
+    : n.postId
+    ? `/posts/${n.postId}`
+    : "#";
 
   return (
     <motion.div

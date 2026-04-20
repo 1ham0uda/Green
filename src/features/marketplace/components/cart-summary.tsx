@@ -1,30 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import Link from "next/link";
 import { formatPrice } from "@/lib/utils/format";
 import { useCart } from "../hooks/use-cart";
-import { usePlaceMockOrder } from "../hooks/use-orders";
 
 export function CartSummary() {
   const cart = useCart();
-  const placeOrder = usePlaceMockOrder();
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-
   const subtotal = cart.subtotal();
-
-  async function handleCheckout() {
-    setError(null);
-    try {
-      await placeOrder.mutateAsync(cart.items);
-      router.push("/orders");
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Checkout failed");
-    }
-  }
 
   if (cart.items.length === 0) {
     return (
@@ -89,21 +72,10 @@ export function CartSummary() {
         </span>
       </div>
 
-      {error && (
-        <p className="text-sm text-red-600" role="alert">
-          {error}
-        </p>
-      )}
-
       <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={() => void handleCheckout()}
-          disabled={placeOrder.isPending}
-          className="btn-primary"
-        >
-          {placeOrder.isPending ? "Placing order…" : "Checkout (mock)"}
-        </button>
+        <Link href="/checkout" className="btn-primary">
+          Proceed to checkout
+        </Link>
         <button
           type="button"
           onClick={() => void cart.clear()}
@@ -113,9 +85,8 @@ export function CartSummary() {
         </button>
       </div>
 
-      <p className="text-xs text-zinc-500">
-        Payments are not implemented. Checkout creates a pending order record
-        only.
+      <p className="text-xs text-ink-muted">
+        Payment is cash on delivery (COD) in Egyptian pounds.
       </p>
     </div>
   );

@@ -13,4 +13,6 @@ export interface VerificationRequest {
   reviewedBy: string | null;
   createdAt: Timestamp | null;
   reviewedAt: Timestamp | null;
+  /** Snapshot of user's total post count at time of request */
+  postCountSnapshot: number;
 }

@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { use } from "react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { PlantUpdates } from "@/features/plants/components/plant-updates";
 import { useDeletePlant, usePlant } from "@/features/plants/hooks/use-plants";
@@ -10,11 +9,11 @@ import { PLANT_TYPES } from "@/features/plants/types";
 import { useRouter } from "next/navigation";
 
 interface PageProps {
-  params: Promise<{ plantId: string }>;
+  params: { plantId: string };
 }
 
 export default function PlantDetailPage({ params }: PageProps) {
-  const { plantId } = use(params);
+  const { plantId } = params;
   const { user } = useAuth();
   const router = useRouter();
   const { data: plant, isLoading, error } = usePlant(plantId);
@@ -34,20 +33,18 @@ export default function PlantDetailPage({ params }: PageProps) {
   }
 
   return (
-    <main className="container max-w-3xl py-8">
-      {isLoading && <p className="text-sm text-zinc-500">Loading plant…</p>}
-      {error && <p className="text-sm text-red-600">Failed to load plant.</p>}
+    <main className="container max-w-3xl pb-24 md:pb-0">
+      {isLoading && <div className="skeleton mt-8 h-64 w-full rounded-2xl" />}
+      {error && <p className="mt-8 font-sans text-[13px] text-red-600">Failed to load plant.</p>}
       {!isLoading && !plant && (
-        <div className="card p-6 text-center text-zinc-600">
-          This plant doesn&apos;t exist.
-        </div>
+        <p className="mt-8 font-sans text-[13px] text-ink-muted">This plant doesn&apos;t exist.</p>
       )}
 
       {plant && (
-        <div className="space-y-6">
-          <section className="card overflow-hidden">
+        <div className="space-y-6 pt-6">
+          <section className="overflow-hidden rounded-2xl border border-surface-border bg-surface">
             {plant.imageURL && (
-              <div className="relative aspect-video w-full bg-brand-50">
+              <div className="relative aspect-video w-full bg-surface-subtle">
                 <Image
                   src={plant.imageURL}
                   alt={plant.name}
@@ -57,36 +54,30 @@ export default function PlantDetailPage({ params }: PageProps) {
                 />
               </div>
             )}
-            <div className="space-y-2 p-6">
-              <p className="text-xs uppercase tracking-wider text-brand-700">
-                {typeLabel}
-              </p>
-              <h1 className="text-2xl font-semibold text-zinc-900">
+            <div className="p-6">
+              <p className="eyebrow mb-2">{typeLabel}</p>
+              <h1 className="font-serif text-[28px] font-normal leading-tight tracking-[-0.02em] text-ink">
                 {plant.name}
               </h1>
               {plant.description && (
-                <p className="text-sm text-zinc-700">{plant.description}</p>
+                <p className="mt-2 font-sans text-[14px] leading-relaxed text-ink-soft">
+                  {plant.description}
+                </p>
               )}
 
               {isOwner && (
-                <div className="flex flex-wrap gap-2 pt-3">
-                  <Link
-                    href={`/plants/${plant.id}/edit`}
-                    className="btn-secondary"
-                  >
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <Link href={`/plants/${plant.id}/edit`} className="btn-secondary btn-sm">
                     Edit
                   </Link>
-                  <Link
-                    href={`/plants/${plant.id}/update`}
-                    className="btn-primary"
-                  >
+                  <Link href={`/plants/${plant.id}/update`} className="btn-primary btn-sm">
                     Post growth update
                   </Link>
                   <button
                     type="button"
                     onClick={() => void handleDelete()}
                     disabled={deletePlant.isPending}
-                    className="btn-secondary text-red-700"
+                    className="btn-danger btn-sm"
                   >
                     Delete
                   </button>
@@ -96,9 +87,7 @@ export default function PlantDetailPage({ params }: PageProps) {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-lg font-semibold text-zinc-900">
-              Growth updates
-            </h2>
+            <p className="eyebrow">Growth Updates</p>
             <PlantUpdates plantId={plant.id} />
           </section>
         </div>

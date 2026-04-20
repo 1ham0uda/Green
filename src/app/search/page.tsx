@@ -14,11 +14,11 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Icon } from "@/components/ui/icon";
-import { Tabs } from "@/components/ui/tabs";
 import { SkeletonRow } from "@/components/ui/skeleton";
 import type { PublicProfile } from "@/features/profiles/types";
 import type { Post } from "@/features/posts/types";
 import type { Product } from "@/features/marketplace/types";
+import { formatPrice } from "@/lib/utils/format";
 
 type Tab = "users" | "posts" | "products";
 
@@ -32,97 +32,83 @@ export default function SearchPage() {
 
   const isSearching = query.length >= 2;
 
+  const TABS: { id: Tab; label: string; count: number | null }[] = [
+    { id: "users",    label: "Users",    count: users?.length    ?? null },
+    { id: "posts",    label: "Posts",    count: posts?.length    ?? null },
+    { id: "products", label: "Products", count: products?.length ?? null },
+  ];
+
   return (
-    <main className="container max-w-2xl py-6 sm:py-10">
-      <div className="mb-6">
-        <h1 className="text-display-sm font-bold tracking-tight text-ink">
+    <main className="mx-auto w-full max-w-[640px] pb-24 md:pb-0">
+      <div className="px-4 pb-3 pt-5">
+        <p className="eyebrow">Discover</p>
+        <h1 className="font-serif text-[28px] font-normal leading-tight tracking-[-0.02em] text-ink">
           Search
         </h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          Find gardeners, posts, and products.
-        </p>
       </div>
 
-      <div className="relative mb-6">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          strokeLinecap="round"
-          className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-subtle"
-        >
-          <circle cx={11} cy={11} r={8} />
-          <path d="m21 21-4.35-4.35" />
-        </svg>
+      <div className="relative px-4 pb-4">
+        <Icon.Search
+          size={18}
+          className="pointer-events-none absolute left-8 top-1/2 -translate-y-1/2 text-ink-subtle"
+        />
         <input
           type="search"
-          placeholder="Search users, posts, products…"
+          placeholder="Users, posts, products…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           autoFocus
-          className="input h-12 pl-12 text-base"
+          className="input h-11 pl-10"
         />
       </div>
 
       {isSearching && (
         <>
-          <div className="mb-5 flex justify-center">
-            <Tabs
-              variant="pill"
-              tabs={[
-                {
-                  id: "users",
-                  label: "Users",
-                  count: users?.length ?? null,
-                  icon: <Icon.Users size={14} />,
-                },
-                {
-                  id: "posts",
-                  label: "Posts",
-                  count: posts?.length ?? null,
-                  icon: <Icon.Leaf size={14} />,
-                },
-                {
-                  id: "products",
-                  label: "Products",
-                  count: products?.length ?? null,
-                  icon: <Icon.ShoppingBag size={14} />,
-                },
-              ]}
-              active={tab}
-              onChange={(id) => setTab(id as Tab)}
-            />
+          <div className="flex gap-0 border-b border-surface-border px-4">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={[
+                  "relative mr-5 pb-3 pt-2 font-sans text-[13px] font-medium transition-colors",
+                  tab === t.id ? "text-ink" : "text-ink-subtle hover:text-ink-muted",
+                ].join(" ")}
+              >
+                {t.label}
+                {t.count !== null && (
+                  <span className="ml-1 tabular-nums text-[11px] text-ink-subtle">
+                    {t.count}
+                  </span>
+                )}
+                {tab === t.id && (
+                  <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-ink" />
+                )}
+              </button>
+            ))}
           </div>
 
           <motion.div
             key={tab}
-            initial={{ opacity: 0, y: 6 }}
+            initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.15 }}
           >
-            {tab === "users" && (
-              <UserResults users={users ?? []} isLoading={usersLoading} />
-            )}
-            {tab === "posts" && (
-              <PostResults posts={posts ?? []} isLoading={postsLoading} />
-            )}
-            {tab === "products" && (
-              <ProductResults
-                products={products ?? []}
-                isLoading={productsLoading}
-              />
-            )}
+            {tab === "users"    && <UserResults    users={users ?? []}       isLoading={usersLoading}    />}
+            {tab === "posts"    && <PostResults    posts={posts ?? []}        isLoading={postsLoading}    />}
+            {tab === "products" && <ProductResults products={products ?? []}  isLoading={productsLoading} />}
           </motion.div>
         </>
       )}
 
       {!isSearching && (
-        <EmptyState
-          icon={<Icon.Search size={22} />}
-          title="Type at least 2 characters"
-          description="Start typing to search across the community."
-        />
+        <div className="px-4 pt-8">
+          <EmptyState
+            icon={<Icon.Search size={22} />}
+            title="Type at least 2 characters"
+            description="Start typing to search across the community."
+          />
+        </div>
       )}
     </main>
   );
@@ -201,10 +187,10 @@ function PostResults({
           href={`/posts/${p.id}`}
           className="flex items-center gap-3 p-4 transition-colors hover:bg-surface-hover"
         >
-          {p.imageURL && (
+          {p.imageURLs[0] && (
             <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl bg-surface-subtle">
               <Image
-                src={p.imageURL}
+                src={p.imageURLs[0]}
                 alt={p.caption || "Post"}
                 fill
                 sizes="48px"
@@ -271,7 +257,7 @@ function ProductResults({
           <div className="min-w-0 flex-1">
             <p className="font-medium text-ink">{p.name}</p>
             <p className="text-sm text-ink-muted">
-              {p.currency} {p.price.toFixed(2)} · by {p.vendorDisplayName}
+              {formatPrice(p.price, p.currency)} · by {p.vendorDisplayName}
             </p>
           </div>
         </Link>

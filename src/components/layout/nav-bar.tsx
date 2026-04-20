@@ -12,18 +12,19 @@ import { CartLink } from "./cart-link";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 
 const NAV_LINKS = [
-  { href: "/feed", label: "Feed", icon: Icon.Home },
-  { href: "/search", label: "Search", icon: Icon.Search },
-  { href: "/plants", label: "Plants", icon: Icon.Leaf },
-  { href: "/competitions", label: "Competitions", icon: Icon.Trophy },
-  { href: "/marketplace", label: "Marketplace", icon: Icon.ShoppingBag },
+  { href: "/feed",          label: "Feed" },
+  { href: "/search",        label: "Search" },
+  { href: "/plants",        label: "Plants" },
+  { href: "/competitions",  label: "Competitions" },
+  { href: "/marketplace",   label: "Marketplace" },
+  { href: "/groups",        label: "Groups" },
 ];
 
 export function NavBar() {
   const { user, signOut, initialized } = useAuth();
   const pathname = usePathname();
-  const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled]   = useState(false);
+  const [menuOpen, setMenuOpen]   = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 4);
@@ -32,9 +33,7 @@ export function NavBar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [pathname]);
+  useEffect(() => { setMenuOpen(false); }, [pathname]);
 
   const isActive = (href: string) =>
     pathname === href || pathname?.startsWith(href + "/");
@@ -45,48 +44,43 @@ export function NavBar() {
         className={cn(
           "sticky top-0 z-40 transition-all duration-200",
           scrolled
-            ? "border-b border-surface-border bg-surface/80 backdrop-blur-xl backdrop-saturate-150"
-            : "bg-surface/60 backdrop-blur-md"
+            ? "border-b border-surface-border bg-surface/90 backdrop-blur-xl"
+            : "bg-surface-muted/80 backdrop-blur-md"
         )}
       >
-        <div className="container flex h-16 items-center justify-between gap-4">
-          {/* Logo */}
+        <div className="container flex h-14 items-center justify-between gap-4">
+
+          {/* ── Logo — editorial "Green." ── */}
           <Link
             href="/"
-            className="group flex items-center gap-2 text-lg font-bold tracking-tight"
+            className="flex items-baseline gap-0.5 transition-opacity hover:opacity-75"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-brand text-white shadow-soft transition-transform group-hover:scale-105">
-              <Icon.Leaf size={18} />
-            </span>
-            <span className="bg-gradient-to-r from-brand-700 to-brand-500 bg-clip-text text-transparent">
+            <span className="font-serif text-[22px] font-normal tracking-[-0.02em] text-ink">
               Green
             </span>
+            <span className="font-serif text-[22px] text-brand-500">.</span>
           </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden items-center gap-1 md:flex">
+          {/* ── Desktop nav — plain text links ── */}
+          <nav className="hidden items-center gap-0.5 md:flex">
             {NAV_LINKS.map((link) => {
-              const Ico = link.icon;
               const active = isActive(link.href);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    "relative rounded-xl px-3.5 py-2 text-sm font-medium transition-colors",
+                    "relative rounded-full px-3.5 py-1.5 font-sans text-[13px] font-medium transition-colors",
                     active
-                      ? "text-brand-700"
+                      ? "text-ink"
                       : "text-ink-muted hover:text-ink"
                   )}
                 >
-                  <span className="flex items-center gap-1.5">
-                    <Ico size={16} />
-                    <span className="hidden lg:inline">{link.label}</span>
-                  </span>
+                  {link.label}
                   {active && (
                     <motion.span
-                      layoutId="nav-active"
-                      className="absolute inset-0 -z-10 rounded-xl bg-brand-50"
+                      layoutId="nav-pill"
+                      className="absolute inset-0 -z-10 rounded-full bg-surface-subtle"
                       transition={{ type: "spring", stiffness: 400, damping: 30 }}
                     />
                   )}
@@ -95,7 +89,7 @@ export function NavBar() {
             })}
           </nav>
 
-          {/* Right side */}
+          {/* ── Right side ── */}
           <div className="flex items-center gap-2">
             {user && (
               <>
@@ -109,17 +103,17 @@ export function NavBar() {
             )}
 
             {!initialized ? (
-              <div className="h-9 w-24 animate-pulse rounded-xl bg-surface-subtle" />
+              <div className="h-8 w-20 animate-pulse rounded-full bg-surface-subtle" />
             ) : user ? (
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setMenuOpen((o) => !o)}
                   aria-label="Account menu"
-                  className="flex items-center gap-2 rounded-xl border border-surface-border bg-surface px-1.5 py-1 pr-3 transition hover:bg-surface-hover"
+                  className="flex items-center gap-2 rounded-full border border-surface-border bg-surface px-2 py-1 pr-3 transition hover:bg-surface-hover"
                 >
                   <Avatar src={user.photoURL} name={user.displayName} size="sm" />
-                  <span className="hidden text-sm font-medium text-ink sm:inline">
+                  <span className="hidden font-sans text-[13px] font-medium text-ink sm:inline">
                     @{user.handle}
                   </span>
                 </button>
@@ -127,46 +121,40 @@ export function NavBar() {
                 <AnimatePresence>
                   {menuOpen && (
                     <>
-                      <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setMenuOpen(false)}
-                      />
+                      <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                       <motion.div
-                        initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                        initial={{ opacity: 0, y: -6, scale: 0.97 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -8, scale: 0.96 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-surface-border bg-surface shadow-float"
+                        exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                        transition={{ duration: 0.12 }}
+                        className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl border border-surface-border bg-surface shadow-elevated"
                       >
-                        <div className="border-b border-surface-border p-4">
-                          <div className="flex items-center gap-3">
-                            <Avatar
-                              src={user.photoURL}
-                              name={user.displayName}
-                              size="md"
-                            />
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-ink">
-                                {user.displayName}
-                              </p>
-                              <p className="truncate text-xs text-ink-muted">
-                                @{user.handle}
-                              </p>
-                            </div>
-                          </div>
+                        {/* Profile header */}
+                        <div className="border-b border-surface-border px-4 py-3">
+                          <p className="font-sans text-[13px] font-medium text-ink">
+                            {user.displayName}
+                          </p>
+                          <p className="font-sans text-xs text-ink-muted">
+                            @{user.handle}
+                          </p>
                         </div>
                         <div className="p-1">
-                          <MenuItem href={`/u/${user.handle}`} icon={<Icon.User size={16} />}>
+                          <MenuItem href={`/u/${user.handle}`} icon={<Icon.User size={15} />}>
                             My profile
                           </MenuItem>
-                          <MenuItem href="/settings/profile" icon={<Icon.Settings size={16} />}>
+                          <MenuItem href="/settings/profile" icon={<Icon.Settings size={15} />}>
                             Settings
                           </MenuItem>
-                          <MenuItem href="/orders" icon={<Icon.ShoppingBag size={16} />}>
+                          <MenuItem href="/orders" icon={<Icon.ShoppingBag size={15} />}>
                             Orders
                           </MenuItem>
+                          {(user.role === "business" || user.role === "admin") && (
+                            <MenuItem href="/vendor/ads" icon={<Icon.Megaphone size={15} />}>
+                              Ads manager
+                            </MenuItem>
+                          )}
                           {user.role === "admin" && (
-                            <MenuItem href="/admin" icon={<Icon.Shield size={16} />}>
+                            <MenuItem href="/admin" icon={<Icon.Shield size={15} />}>
                               Admin panel
                             </MenuItem>
                           )}
@@ -174,9 +162,9 @@ export function NavBar() {
                           <button
                             type="button"
                             onClick={() => void signOut()}
-                            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm text-red-600 transition hover:bg-red-50"
+                            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left font-sans text-[13px] text-red-700 transition hover:bg-red-50"
                           >
-                            <Icon.LogOut size={16} />
+                            <Icon.LogOut size={15} />
                             Sign out
                           </button>
                         </div>
@@ -187,11 +175,11 @@ export function NavBar() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <Link href="/login" className="btn-ghost text-sm">
+                <Link href="/login" className="btn-ghost btn-sm">
                   Sign in
                 </Link>
-                <Link href="/signup" className="btn-primary text-sm">
-                  Sign up
+                <Link href="/signup" className="btn-primary btn-sm">
+                  Get started
                 </Link>
               </div>
             )}
@@ -199,7 +187,7 @@ export function NavBar() {
         </div>
       </header>
 
-      {/* Mobile bottom nav */}
+      {/* ── Mobile bottom nav ── */}
       {user && <MobileBottomNav pathname={pathname ?? ""} />}
     </>
   );
@@ -217,7 +205,7 @@ function MenuItem({
   return (
     <Link
       href={href}
-      className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-ink-muted transition hover:bg-surface-hover hover:text-ink"
+      className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-sans text-[13px] text-ink-muted transition hover:bg-surface-hover hover:text-ink"
     >
       <span className="text-ink-subtle">{icon}</span>
       {children}
@@ -227,29 +215,30 @@ function MenuItem({
 
 function MobileBottomNav({ pathname }: { pathname: string }) {
   const links = [
-    { href: "/feed", label: "Feed", icon: Icon.Home },
-    { href: "/search", label: "Search", icon: Icon.Search },
-    { href: "/posts/new", label: "Post", icon: Icon.Plus, featured: true },
-    { href: "/marketplace", label: "Shop", icon: Icon.ShoppingBag },
-    { href: "/notifications", label: "Activity", icon: Icon.Bell },
+    { href: "/feed",          label: "Feed",   icon: Icon.Home },
+    { href: "/search",        label: "Search", icon: Icon.Search },
+    { href: "/posts/new",     label: "Post",   icon: Icon.Plus, featured: true },
+    { href: "/marketplace",   label: "Shop",   icon: Icon.ShoppingBag },
+    { href: "/notifications", label: "Alerts", icon: Icon.Bell },
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-surface-border bg-surface/90 backdrop-blur-xl md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-surface-border bg-surface/95 backdrop-blur-xl md:hidden">
       <div className="flex h-16 items-center justify-around px-2 pb-[env(safe-area-inset-bottom)]">
         {links.map((link) => {
           const Ico = link.icon;
           const active =
             pathname === link.href || pathname.startsWith(link.href + "/");
+
           if (link.featured) {
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className="flex items-center justify-center -mt-6"
+                className="flex items-center justify-center"
               >
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-brand text-white shadow-float transition-transform active:scale-95">
-                  <Ico size={22} />
+                <span className="flex h-11 w-11 -translate-y-3 items-center justify-center rounded-full bg-ink text-ink-inverted shadow-elevated transition-transform active:scale-95">
+                  <Ico size={20} />
                 </span>
               </Link>
             );
@@ -259,11 +248,14 @@ function MobileBottomNav({ pathname }: { pathname: string }) {
               key={link.href}
               href={link.href}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 text-[10px] font-medium transition-colors",
-                active ? "text-brand-700" : "text-ink-subtle"
+                "flex flex-col items-center gap-0.5 px-3 py-1.5 font-sans text-[9px] font-medium uppercase tracking-eyebrow transition-colors",
+                active ? "text-ink" : "text-ink-subtle"
               )}
             >
-              <Ico size={22} />
+              <Ico
+                size={20}
+                className={active ? "stroke-[1.8]" : "stroke-[1.5]"}
+              />
               <span>{link.label}</span>
             </Link>
           );

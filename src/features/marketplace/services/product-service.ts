@@ -38,12 +38,15 @@ function mapProduct(
     vendorId: data.vendorId,
     vendorDisplayName: data.vendorDisplayName ?? "",
     name: data.name,
+    nameLower: data.nameLower ?? data.name?.toLowerCase() ?? "",
     description: data.description ?? "",
     price: data.price ?? 0,
-    currency: data.currency ?? "USD",
+    currency: data.currency ?? "EGP",
     imageURL: data.imageURL ?? null,
     stock: data.stock ?? 0,
     isActive: data.isActive ?? true,
+    status: (data.status as Product["status"]) ?? "approved",
+    rejectionReason: (data.rejectionReason as string | null) ?? null,
     createdAt: data.createdAt ?? null,
     updatedAt: data.updatedAt ?? null,
   };
@@ -52,7 +55,7 @@ function mapProduct(
 export async function fetchActiveProducts(): Promise<Product[]> {
   const q = query(
     collection(firestore, PRODUCTS),
-    where("isActive", "==", true),
+    where("status", "==", "approved"),
     orderBy("createdAt", "desc"),
     limit(50)
   );
@@ -96,16 +99,20 @@ export async function createProduct(
     imageURL = await uploadImage(path, input.imageFile);
   }
 
+  const trimmedName = input.name.trim();
   const payload = {
     vendorId: vendor.uid,
     vendorDisplayName: vendor.displayName,
-    name: input.name.trim(),
+    name: trimmedName,
+    nameLower: trimmedName.toLowerCase(),
     description: input.description.trim(),
     price: input.price,
-    currency: input.currency ?? "USD",
+    currency: input.currency ?? "EGP",
     imageURL,
     stock: input.stock,
     isActive: true,
+    status: "pending" as const,
+    rejectionReason: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -124,7 +131,10 @@ export async function updateProduct(
     updatedAt: serverTimestamp(),
   };
 
-  if (input.name !== undefined) patch.name = input.name.trim();
+  if (input.name !== undefined) {
+    patch.name = input.name.trim();
+    patch.nameLower = input.name.trim().toLowerCase();
+  }
   if (input.description !== undefined) patch.description = input.description.trim();
   if (input.price !== undefined) {
     if (input.price < 0) throw new Error("Price must be non-negative");

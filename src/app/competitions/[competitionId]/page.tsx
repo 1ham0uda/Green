@@ -1,32 +1,31 @@
 "use client";
 
 import Image from "next/image";
-import { use } from "react";
 import { Leaderboard } from "@/features/competitions/components/leaderboard";
 import { SubmitEntryButton } from "@/features/competitions/components/submit-entry-button";
 import { useCompetition } from "@/features/competitions/hooks/use-competitions";
 
 interface PageProps {
-  params: Promise<{ competitionId: string }>;
+  params: { competitionId: string };
 }
 
 export default function CompetitionDetailPage({ params }: PageProps) {
-  const { competitionId } = use(params);
+  const { competitionId } = params;
   const { data: competition, isLoading, error } = useCompetition(competitionId);
 
   return (
-    <main className="container max-w-3xl py-8">
-      {isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
-      {error && <p className="text-sm text-red-600">Failed to load.</p>}
+    <main className="container max-w-3xl pb-24 md:pb-0">
+      {isLoading && <div className="skeleton mt-8 h-64 w-full rounded-2xl" />}
+      {error && <p className="mt-8 font-sans text-[13px] text-red-600">Failed to load.</p>}
       {!isLoading && !competition && (
-        <p className="text-sm text-zinc-500">Competition not found.</p>
+        <p className="mt-8 font-sans text-[13px] text-ink-muted">Competition not found.</p>
       )}
 
       {competition && (
-        <div className="space-y-6">
-          <section className="card overflow-hidden">
+        <div className="space-y-6 pt-6">
+          <section className="overflow-hidden rounded-2xl border border-surface-border bg-surface">
             {competition.coverImageURL && (
-              <div className="relative aspect-video w-full bg-brand-50">
+              <div className="relative aspect-video w-full bg-surface-subtle">
                 <Image
                   src={competition.coverImageURL}
                   alt={competition.title}
@@ -36,30 +35,28 @@ export default function CompetitionDetailPage({ params }: PageProps) {
                 />
               </div>
             )}
-            <div className="space-y-2 p-6">
-              <span className="inline-block rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium capitalize text-brand-800">
-                {competition.status}
-              </span>
-              <h1 className="text-2xl font-semibold text-zinc-900">
+            <div className="p-6">
+              <span className="badge badge-brand mb-3 capitalize">{competition.status}</span>
+              <h1 className="font-serif text-[28px] font-normal leading-tight tracking-[-0.02em] text-ink">
                 {competition.title}
               </h1>
               {competition.description && (
-                <p className="text-sm text-zinc-700">{competition.description}</p>
+                <p className="mt-2 font-sans text-[14px] leading-relaxed text-ink-soft">
+                  {competition.description}
+                </p>
               )}
             </div>
           </section>
 
           {competition.status === "active" && (
             <section className="space-y-3">
-              <h2 className="text-lg font-semibold text-zinc-900">
-                Enter the competition
-              </h2>
+              <p className="eyebrow">Enter</p>
               <SubmitEntryButton competitionId={competition.id} />
             </section>
           )}
 
           <section className="space-y-4">
-            <h2 className="text-lg font-semibold text-zinc-900">Leaderboard</h2>
+            <p className="eyebrow">Leaderboard</p>
             <Leaderboard competitionId={competition.id} />
           </section>
         </div>

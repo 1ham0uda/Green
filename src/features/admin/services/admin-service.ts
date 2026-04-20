@@ -18,6 +18,7 @@ import {
 import { firestore } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { log } from "@/lib/logger";
+import { createNotification } from "@/features/notifications/services/notification-service";
 import type { AdminUser, DashboardStats, ModerationLog } from "../types";
 import type { UserProfile } from "@/features/auth/types";
 
@@ -202,6 +203,110 @@ export async function adminDeletePost(
   await log("admin.delete_post", adminId, { targetId: postId });
 }
 
+// ─── POST APPROVAL ───────────────────────────────────────────────────────────
+
+export async function fetchPendingPosts() {
+  const q = query(
+    collection(firestore, COLLECTIONS.posts),
+    where("status", "==", "pending"),
+    orderBy("createdAt", "desc"),
+    limit(100)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      authorId: data.authorId as string,
+      authorHandle: data.authorHandle as string,
+      authorDisplayName: data.authorDisplayName as string,
+      caption: (data.caption as string) ?? "",
+      imageURLs: Array.isArray(data.imageURLs) ? (data.imageURLs as string[]) : [],
+      status: (data.status as string) ?? "pending",
+      governorate: (data.governorate as string) ?? "",
+      city: (data.city as string) ?? "",
+      createdAt: data.createdAt ?? null,
+    };
+  });
+}
+
+export async function approvePost(
+  adminId: string,
+  adminHandle: string,
+  postId: string
+): Promise<void> {
+  const postRef = doc(firestore, COLLECTIONS.posts, postId);
+  const postSnap = await getDoc(postRef);
+  const authorId = postSnap.data()?.authorId as string | undefined;
+
+  await updateDoc(postRef, {
+    status: "approved",
+    reviewedAt: serverTimestamp(),
+    reviewedBy: adminId,
+    rejectionReason: null,
+  });
+
+  await writeModerationLog(adminId, adminHandle, {
+    action: "approve_post",
+    targetId: postId,
+    targetType: "post",
+    note: "",
+  });
+
+  if (authorId) {
+    void createNotification({
+      toUserId: authorId,
+      type: "post_approved",
+      fromUserId: adminId,
+      fromUserHandle: adminHandle,
+      fromUserDisplayName: "Green Team",
+      postId,
+      message: "Your post has been approved and is now visible to everyone.",
+    });
+  }
+
+  await log("admin.approve_post", adminId, { targetId: postId });
+}
+
+export async function rejectPost(
+  adminId: string,
+  adminHandle: string,
+  postId: string,
+  reason: string
+): Promise<void> {
+  const postRef = doc(firestore, COLLECTIONS.posts, postId);
+  const postSnap = await getDoc(postRef);
+  const authorId = postSnap.data()?.authorId as string | undefined;
+
+  await updateDoc(postRef, {
+    status: "rejected",
+    reviewedAt: serverTimestamp(),
+    reviewedBy: adminId,
+    rejectionReason: reason,
+  });
+
+  await writeModerationLog(adminId, adminHandle, {
+    action: "reject_post",
+    targetId: postId,
+    targetType: "post",
+    note: reason,
+  });
+
+  if (authorId) {
+    void createNotification({
+      toUserId: authorId,
+      type: "post_rejected",
+      fromUserId: adminId,
+      fromUserHandle: adminHandle,
+      fromUserDisplayName: "Green Team",
+      postId,
+      message: reason,
+    });
+  }
+
+  await log("admin.reject_post", adminId, { targetId: postId, metadata: { reason } });
+}
+
 // ─── PRODUCT APPROVAL ────────────────────────────────────────────────────────
 
 export async function approveProduct(
@@ -209,7 +314,11 @@ export async function approveProduct(
   adminHandle: string,
   productId: string
 ): Promise<void> {
-  await updateDoc(doc(firestore, COLLECTIONS.products, productId), {
+  const productRef = doc(firestore, COLLECTIONS.products, productId);
+  const productSnap = await getDoc(productRef);
+  const vendorId = productSnap.data()?.vendorId as string | undefined;
+
+  await updateDoc(productRef, {
     status: "approved",
     isActive: true,
     reviewedAt: serverTimestamp(),
@@ -223,6 +332,17 @@ export async function approveProduct(
     note: "",
   });
 
+  if (vendorId) {
+    void createNotification({
+      toUserId: vendorId,
+      type: "product_approved",
+      fromUserId: adminId,
+      fromUserHandle: adminHandle,
+      fromUserDisplayName: "Green Team",
+      message: "Your product listing has been approved and is now live.",
+    });
+  }
+
   await log("admin.approve_product", adminId, { targetId: productId });
 }
 
@@ -232,7 +352,11 @@ export async function rejectProduct(
   productId: string,
   reason: string
 ): Promise<void> {
-  await updateDoc(doc(firestore, COLLECTIONS.products, productId), {
+  const productRef = doc(firestore, COLLECTIONS.products, productId);
+  const productSnap = await getDoc(productRef);
+  const vendorId = productSnap.data()?.vendorId as string | undefined;
+
+  await updateDoc(productRef, {
     status: "rejected",
     isActive: false,
     reviewedAt: serverTimestamp(),
@@ -246,6 +370,17 @@ export async function rejectProduct(
     targetType: "product",
     note: reason,
   });
+
+  if (vendorId) {
+    void createNotification({
+      toUserId: vendorId,
+      type: "product_rejected",
+      fromUserId: adminId,
+      fromUserHandle: adminHandle,
+      fromUserDisplayName: "Green Team",
+      message: reason,
+    });
+  }
 
   await log("admin.reject_product", adminId, {
     targetId: productId,
@@ -270,10 +405,36 @@ export async function fetchPendingProducts() {
       name: data.name as string,
       description: data.description as string,
       price: data.price as number,
-      currency: (data.currency as string) ?? "USD",
+      currency: (data.currency as string) ?? "EGP",
       imageURL: (data.imageURL as string | null) ?? null,
       stock: data.stock as number,
       status: data.status as string,
+      createdAt: data.createdAt ?? null,
+    };
+  });
+}
+
+export async function fetchAllAdminProducts() {
+  const q = query(
+    collection(firestore, COLLECTIONS.products),
+    orderBy("createdAt", "desc"),
+    limit(100)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      vendorId: data.vendorId as string,
+      vendorDisplayName: data.vendorDisplayName as string,
+      name: data.name as string,
+      description: data.description as string,
+      price: data.price as number,
+      currency: (data.currency as string) ?? "EGP",
+      imageURL: (data.imageURL as string | null) ?? null,
+      stock: data.stock as number,
+      status: (data.status as string) ?? "approved",
+      rejectionReason: (data.rejectionReason as string | null) ?? null,
       createdAt: data.createdAt ?? null,
     };
   });

@@ -34,6 +34,7 @@ function mapNotif(
     postId: d.postId ?? null,
     postImageURL: d.postImageURL ?? null,
     commentBody: d.commentBody ?? null,
+    message: d.message ?? null,
     read: d.read ?? false,
     createdAt: d.createdAt ?? null,
   };
@@ -49,6 +50,7 @@ interface CreateNotifPayload {
   postId?: string;
   postImageURL?: string;
   commentBody?: string;
+  message?: string;
 }
 
 export async function createNotification(
@@ -62,10 +64,11 @@ export async function createNotification(
     fromUserId: payload.fromUserId,
     fromUserHandle: payload.fromUserHandle,
     fromUserDisplayName: payload.fromUserDisplayName,
-    fromUserPhotoURL: payload.fromUserPhotoURL,
+    fromUserPhotoURL: payload.fromUserPhotoURL ?? null,
     postId: payload.postId ?? null,
     postImageURL: payload.postImageURL ?? null,
     commentBody: payload.commentBody ?? null,
+    message: payload.message ?? null,
     read: false,
     createdAt: serverTimestamp(),
   });

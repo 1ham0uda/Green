@@ -23,6 +23,8 @@ export type LogAction =
   | "admin.unban_user"
   | "admin.delete_post"
   | "admin.delete_comment"
+  | "admin.approve_post"
+  | "admin.reject_post"
   | "admin.approve_product"
   | "admin.reject_product"
   | "admin.create_competition"

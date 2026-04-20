@@ -101,7 +101,7 @@ export function ProductForm({
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <label htmlFor="price" className="text-sm font-medium text-zinc-800">
-            Price (USD)
+            Price (EGP)
           </label>
           <input
             id="price"

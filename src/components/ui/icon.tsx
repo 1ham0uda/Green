@@ -126,6 +126,20 @@ export const Icon = {
       <polyline points="9 18 15 12 9 6" />
     </svg>
   ),
+  ChevronLeft: (p: IconProps) => (
+    <svg {...base(p)}>
+      <polyline points="15 18 9 12 15 6" />
+    </svg>
+  ),
+  ImagePlus: (p: IconProps) => (
+    <svg {...base(p)}>
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7" />
+      <line x1="16" y1="5" x2="22" y2="5" />
+      <line x1="19" y1="2" x2="19" y2="8" />
+      <circle cx="9" cy="9" r="2" />
+      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+    </svg>
+  ),
   Check: (p: IconProps) => (
     <svg {...base(p)}>
       <polyline points="20 6 9 17 4 12" />
@@ -174,6 +188,45 @@ export const Icon = {
     <svg {...base(p)}>
       <circle cx="12" cy="12" r="5" />
       <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+    </svg>
+  ),
+  Share: (p: IconProps) => (
+    <svg {...base(p)}>
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  ),
+  Link: (p: IconProps) => (
+    <svg {...base(p)}>
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  ),
+  Trash: (p: IconProps) => (
+    <svg {...base(p)}>
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>
+  ),
+  Megaphone: (p: IconProps) => (
+    <svg {...base(p)}>
+      <path d="m3 11 19-9-9 19-2-8-8-2z" />
+    </svg>
+  ),
+  MoreHorizontal: (p: IconProps) => (
+    <svg {...base(p)}>
+      <circle cx="5" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="19" cy="12" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  Bookmark: (p: IconProps) => (
+    <svg {...base(p)}>
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
     </svg>
   ),
 };

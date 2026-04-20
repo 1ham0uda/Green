@@ -4,32 +4,36 @@
 
 @layer base {
   :root {
-    /* Light theme */
-    --surface: 255 255 255;
-    --surface-muted: 249 250 251;
-    --surface-subtle: 244 244 245;
-    --surface-border: 228 228 231;
-    --surface-hover: 244 244 245;
+    /* ── Green design system · Light ── */
+    /* Surfaces — warm cream palette */
+    --surface:        255 255 255;   /* #FFFFFF  card bg */
+    --surface-muted:  245 241 232;   /* #F5F1E8  page bg (cream) */
+    --surface-subtle: 239 234 219;   /* #EFEADB  alt surfaces */
+    --surface-border: 227 220 201;   /* #E3DCC9  hairline */
+    --surface-hover:  235 229 211;   /* #EBE5D3  hover tint */
 
-    --ink: 24 24 27;
-    --ink-muted: 82 82 91;
-    --ink-subtle: 161 161 170;
-    --ink-inverted: 255 255 255;
+    /* Ink — near-black with a green cast */
+    --ink:          26  31  26;      /* #1A1F1A */
+    --ink-soft:     61  69  60;      /* #3D453C */
+    --ink-muted:    122 116 104;     /* #7A7468  warm taupe */
+    --ink-subtle:   163 158 146;     /* #A39E92 */
+    --ink-inverted: 245 241 232;     /* #F5F1E8 */
 
     --shadow-color: 0 0 0;
   }
 
   .dark {
-    --surface: 9 9 11;
-    --surface-muted: 24 24 27;
-    --surface-subtle: 39 39 42;
-    --surface-border: 39 39 42;
-    --surface-hover: 39 39 42;
+    --surface:        28  31  33;    /* #1C1F21 */
+    --surface-muted:  21  24  26;    /* #15181A */
+    --surface-subtle: 36  39  41;    /* #242729 */
+    --surface-border: 42  45  46;    /* #2A2D2E */
+    --surface-hover:  36  39  41;    /* #242729 */
 
-    --ink: 250 250 250;
-    --ink-muted: 161 161 170;
-    --ink-subtle: 113 113 122;
-    --ink-inverted: 9 9 11;
+    --ink:          238 234 224;     /* #EEEAE0 */
+    --ink-soft:     196 191 179;     /* #C4BFB3 */
+    --ink-muted:    138 133 120;     /* #8A8578 */
+    --ink-subtle:    95  91  81;     /* #5F5B51 */
+    --ink-inverted:  21  24  26;     /* #15181A */
 
     --shadow-color: 0 0 0;
   }
@@ -53,20 +57,13 @@
     box-sizing: border-box;
   }
 
-  /* Better selection */
   ::selection {
-    background: rgb(16 185 129 / 0.2);
+    background: rgb(61 91 59 / 0.15);
     color: rgb(var(--ink));
   }
 
-  /* Clean scrollbar */
-  ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
     background: rgb(var(--surface-border));
     border-radius: 9999px;
@@ -79,13 +76,11 @@
     border: 2px solid transparent;
   }
 
-  /* Focus rings */
   :focus-visible {
-    outline: 2px solid rgb(16 185 129);
+    outline: 2px solid #3D5B3B;
     outline-offset: 2px;
     border-radius: 4px;
   }
-
   button:focus-visible,
   a:focus-visible,
   input:focus-visible,
@@ -96,92 +91,98 @@
 }
 
 @layer components {
-  /* Buttons */
+  /* ── Buttons — pill-shaped, editorial ── */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full
+           font-sans text-sm font-medium tracking-wide
+           transition-all duration-150
+           disabled:cursor-not-allowed disabled:opacity-50;
   }
-
+  /* primary = dark fill / cream text */
   .btn-primary {
-    @apply btn bg-gradient-brand px-4 py-2.5 text-white shadow-soft hover:shadow-glow hover:brightness-110 active:scale-[0.98];
+    @apply btn bg-ink px-4 py-2.5 text-ink-inverted
+           hover:opacity-85 active:scale-[0.98];
   }
-
+  /* secondary = ghost with hairline border */
   .btn-secondary {
-    @apply btn border border-surface-border bg-surface px-4 py-2.5 text-ink hover:bg-surface-hover active:scale-[0.98];
+    @apply btn border border-surface-border bg-transparent px-4 py-2.5 text-ink
+           hover:bg-surface-hover active:scale-[0.98];
   }
-
+  /* accent = sage fill */
+  .btn-accent {
+    @apply btn bg-brand-500 px-4 py-2.5 text-white
+           hover:bg-brand-600 active:scale-[0.98];
+  }
   .btn-ghost {
-    @apply btn px-4 py-2.5 text-ink-muted hover:bg-surface-hover hover:text-ink active:scale-[0.98];
+    @apply btn px-4 py-2.5 text-ink-muted
+           hover:bg-surface-hover hover:text-ink active:scale-[0.98];
   }
-
   .btn-danger {
-    @apply btn bg-red-500 px-4 py-2.5 text-white shadow-soft hover:bg-red-600 active:scale-[0.98];
+    @apply btn border border-surface-border px-4 py-2.5 text-red-700
+           hover:bg-red-50 active:scale-[0.98];
   }
+  .btn-sm  { @apply px-3 py-1.5 text-xs; }
+  .btn-lg  { @apply px-6 py-3 text-base; }
 
-  .btn-sm {
-    @apply px-3 py-1.5 text-xs;
-  }
-
-  .btn-lg {
-    @apply px-6 py-3 text-base;
-  }
-
-  /* Inputs */
+  /* ── Inputs ── */
   .input {
-    @apply w-full rounded-xl border border-surface-border bg-surface px-4 py-2.5 text-sm text-ink placeholder:text-ink-subtle transition-all duration-200 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply w-full rounded-xl border border-surface-border bg-surface
+           px-4 py-2.5 font-sans text-sm text-ink
+           placeholder:text-ink-subtle
+           transition-all duration-150
+           focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10
+           disabled:cursor-not-allowed disabled:opacity-60;
   }
-
   .input-error {
     @apply border-red-400 focus:border-red-500 focus:ring-red-500/10;
   }
-
   .label {
-    @apply mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink-muted;
+    @apply mb-1.5 block font-sans text-[10px] font-medium uppercase tracking-eyebrow text-ink-muted;
   }
 
-  /* Cards */
+  /* ── Cards ── */
   .card {
     @apply rounded-2xl border border-surface-border bg-surface shadow-card;
   }
-
   .card-hover {
-    @apply card transition-all duration-300 hover:shadow-elevated hover:-translate-y-0.5;
+    @apply card transition-all duration-300 hover:-translate-y-0.5 hover:shadow-elevated;
   }
-
   .card-interactive {
-    @apply card cursor-pointer transition-all duration-200 hover:shadow-elevated hover:border-brand-200 active:scale-[0.99];
+    @apply card cursor-pointer transition-all duration-200
+           hover:border-brand-200 hover:shadow-elevated active:scale-[0.99];
   }
 
-  /* Glass effect */
+  /* ── Post card — editorial, full-bleed ── */
+  .post-card {
+    @apply border-b border-surface-border bg-surface font-sans text-ink;
+  }
+
+  /* ── Status badges — editorial uppercase pills ── */
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full
+           px-2.5 py-0.5 font-sans text-[10px] font-medium
+           uppercase tracking-eyebrow;
+  }
+  .badge-pending  { @apply badge border border-surface-border text-ink-muted; }
+  .badge-approved { @apply badge border border-brand-300 text-brand-600; }
+  .badge-rejected { @apply badge border border-red-200 text-red-700; }
+  .badge-brand    { @apply badge bg-brand-50 text-brand-700; }
+  .badge-amber    { @apply badge bg-amber-50 text-amber-700; }
+  .badge-red      { @apply badge bg-red-50 text-red-700; }
+  .badge-zinc     { @apply badge bg-surface-subtle text-ink-muted; }
+  .badge-rare     { @apply badge border border-brand-500 text-brand-500; }
+  .badge-competition { @apply badge bg-brand-500 text-white; }
+  .badge-sponsored   { @apply badge bg-ink text-ink-inverted; }
+
+  /* ── Glass ── */
   .glass {
     @apply border border-white/20 bg-white/70 backdrop-blur-xl backdrop-saturate-150;
   }
-
   .dark .glass {
     @apply border-white/10 bg-zinc-900/60;
   }
 
-  /* Badges */
-  .badge {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
-  }
-
-  .badge-brand {
-    @apply badge bg-brand-50 text-brand-700;
-  }
-
-  .badge-amber {
-    @apply badge bg-amber-50 text-amber-700;
-  }
-
-  .badge-red {
-    @apply badge bg-red-50 text-red-700;
-  }
-
-  .badge-zinc {
-    @apply badge bg-zinc-100 text-zinc-700;
-  }
-
-  /* Skeleton */
+  /* ── Skeleton ── */
   .skeleton {
     @apply relative overflow-hidden rounded-lg bg-surface-subtle;
   }
@@ -191,7 +192,7 @@
     background: linear-gradient(
       90deg,
       transparent 0%,
-      rgb(255 255 255 / 0.6) 50%,
+      rgb(255 255 255 / 0.55) 50%,
       transparent 100%
     );
     animation: shimmer 1.8s infinite;
@@ -200,48 +201,57 @@
     background: linear-gradient(
       90deg,
       transparent 0%,
-      rgb(255 255 255 / 0.06) 50%,
+      rgb(255 255 255 / 0.05) 50%,
       transparent 100%
     );
   }
 
-  /* Chip/Tab */
+  /* ── Chip / Tab ── */
   .chip {
-    @apply inline-flex items-center gap-1.5 rounded-full border border-surface-border bg-surface px-3 py-1.5 text-xs font-medium text-ink-muted transition-all hover:border-brand-200 hover:text-ink;
+    @apply inline-flex items-center gap-1.5 rounded-full border border-surface-border
+           bg-surface px-3 py-1.5 font-sans text-xs font-medium text-ink-muted
+           transition-all hover:border-brand-300 hover:text-ink;
   }
-
   .chip-active {
     @apply border-brand-500 bg-brand-50 text-brand-700;
   }
 
-  /* Divider */
-  .divider {
-    @apply h-px w-full bg-surface-border;
-  }
+  /* ── Dividers ── */
+  .divider      { @apply h-px w-full bg-surface-border; }
+  .divider-soft { @apply h-px w-full bg-surface-subtle; }
 
-  /* Link */
+  /* ── Link ── */
   .link {
     @apply text-brand-600 underline-offset-2 transition hover:text-brand-700 hover:underline;
+  }
+
+  /* ── Eyebrow — uppercase section label ── */
+  .eyebrow {
+    @apply font-sans text-[10px] font-medium uppercase tracking-eyebrow text-ink-muted;
+  }
+
+  /* ── Species / italic display pill ── */
+  .species-pill {
+    @apply rounded-full px-2.5 py-1 font-serif text-xs italic text-white;
+    background: rgba(26, 31, 26, 0.78);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-  .text-pretty {
-    text-wrap: pretty;
-  }
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+  .text-balance  { text-wrap: balance; }
+  .text-pretty   { text-wrap: pretty; }
+  .tabular-nums  { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Thin stroke for icon fills */
+  .stroke-hairline { stroke-width: 1.5; }
 
   @keyframes shimmer {
-    0% { transform: translateX(-100%); }
+    0%   { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
   }
 }

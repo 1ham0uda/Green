@@ -5,15 +5,13 @@ import { NotificationItem } from "@/features/notifications/components/notificati
 import { useNotifications } from "@/features/notifications/hooks/use-notifications";
 import { markOneRead } from "@/features/notifications/services/notification-service";
 import { useAuth } from "@/features/auth/hooks/use-auth";
-import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SkeletonRow } from "@/components/ui/skeleton";
 import { Icon } from "@/components/ui/icon";
-import { Badge } from "@/components/ui/badge";
 
 export default function NotificationsPage() {
   return (
-    <main className="container max-w-2xl py-6 sm:py-10">
+    <main className="mx-auto w-full max-w-[640px] pb-24 md:pb-0">
       <AuthGate>
         <NotificationsContent />
       </AuthGate>
@@ -31,29 +29,31 @@ function NotificationsContent() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between gap-4">
+    <div>
+      <div className="flex items-center justify-between gap-4 px-4 pb-3 pt-5">
         <div>
-          <h1 className="flex items-center gap-2 text-display-sm font-bold tracking-tight text-ink">
+          <p className="eyebrow">Inbox</p>
+          <h1 className="font-serif text-[28px] font-normal leading-tight tracking-[-0.02em] text-ink">
             Activity
             {unreadCount > 0 && (
-              <Badge variant="red" dot>
+              <span className="ml-2 tabular-nums font-sans text-[14px] font-normal text-brand-500">
                 {unreadCount} new
-              </Badge>
+              </span>
             )}
           </h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            Follows, likes, and comments on your posts.
-          </p>
         </div>
         {unreadCount > 0 && (
-          <Button variant="secondary" onClick={() => void readAll()}>
+          <button
+            type="button"
+            onClick={() => void readAll()}
+            className="btn-ghost btn-sm"
+          >
             Mark all read
-          </Button>
+          </button>
         )}
       </div>
 
-      <div className="card divide-y divide-surface-border overflow-hidden">
+      <div className="border-t border-surface-border">
         {loading && (
           <>
             <SkeletonRow />
@@ -67,7 +67,6 @@ function NotificationsContent() {
             icon={<Icon.Bell size={22} />}
             title="You're all caught up"
             description="When someone follows, likes, or comments, you'll see it here."
-            className="border-0 shadow-none"
           />
         )}
 

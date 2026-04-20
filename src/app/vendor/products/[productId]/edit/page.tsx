@@ -1,6 +1,5 @@
 "use client";
 
-import { use } from "react";
 import { useRouter } from "next/navigation";
 import { AuthGate } from "@/features/auth/components/auth-gate";
 import { ProductForm } from "@/features/marketplace/components/product-form";
@@ -10,14 +9,14 @@ import {
 } from "@/features/marketplace/hooks/use-products";
 
 interface PageProps {
-  params: Promise<{ productId: string }>;
+  params: { productId: string };
 }
 
 export default function EditProductPage({ params }: PageProps) {
-  const { productId } = use(params);
+  const { productId } = params;
 
   return (
-    <main className="container max-w-2xl py-8">
+    <main className="container max-w-2xl pb-24 md:pb-0">
       <AuthGate>
         <EditProductContent productId={productId} />
       </AuthGate>
@@ -30,12 +29,16 @@ function EditProductContent({ productId }: { productId: string }) {
   const { data: product, isLoading } = useProduct(productId);
   const updateProduct = useUpdateProduct(productId);
 
-  if (isLoading) return <p className="text-sm text-zinc-500">Loading…</p>;
-  if (!product) return <p className="text-sm text-zinc-500">Product not found.</p>;
+  if (isLoading) return <div className="skeleton mt-8 h-8 w-40 rounded-full" />;
+  if (!product) return <p className="mt-8 font-sans text-[13px] text-ink-muted">Product not found.</p>;
 
   return (
-    <div className="card p-6">
-      <h1 className="mb-6 text-xl font-semibold text-zinc-900">Edit product</h1>
+    <div>
+      <div className="py-5">
+        <p className="eyebrow">Vendor</p>
+        <h1 className="font-serif text-[28px] font-normal leading-tight tracking-[-0.02em] text-ink">Edit Product</h1>
+      </div>
+      <div className="rounded-2xl border border-surface-border bg-surface p-6">
       <ProductForm
         initial={product}
         submitLabel="Save changes"
@@ -46,6 +49,7 @@ function EditProductContent({ productId }: { productId: string }) {
           router.refresh();
         }}
       />
+      </div>
     </div>
   );
 }

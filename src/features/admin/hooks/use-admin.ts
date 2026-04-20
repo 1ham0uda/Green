@@ -9,6 +9,7 @@ import {
   adminDeletePost,
   adminRejectVerification,
   adminUpdateCompetitionStatus,
+  approvePost,
   approveProduct,
   banUser,
   fetchAllUsers,
@@ -17,8 +18,11 @@ import {
   fetchLogs,
   fetchModerationLogs,
   fetchOpenReports,
+  fetchPendingPosts,
+  fetchAllAdminProducts,
   fetchPendingProducts,
   fetchPendingVerifications,
+  rejectPost,
   rejectProduct,
   resolveReport,
   searchUsers,
@@ -66,6 +70,15 @@ export function usePendingProducts() {
   return useQuery({
     queryKey: ["admin", "pending-products"],
     queryFn: fetchPendingProducts,
+    enabled: isAdmin,
+  });
+}
+
+export function useAllAdminProducts() {
+  const isAdmin = useIsAdmin();
+  return useQuery({
+    queryKey: ["admin", "all-products"],
+    queryFn: fetchAllAdminProducts,
     enabled: isAdmin,
   });
 }
@@ -131,7 +144,11 @@ export function useApproveProduct() {
       if (!user) throw new Error("Not authenticated");
       return approveProduct(user.uid, user.handle, productId);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "pending-products"] });
+      qc.invalidateQueries({ queryKey: ["admin", "all-products"] });
+      qc.invalidateQueries({ queryKey: ["admin", "stats"] });
+    },
   });
 }
 
@@ -149,7 +166,11 @@ export function useRejectProduct() {
       if (!user) throw new Error("Not authenticated");
       return rejectProduct(user.uid, user.handle, productId, reason);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "pending-products"] });
+      qc.invalidateQueries({ queryKey: ["admin", "all-products"] });
+      qc.invalidateQueries({ queryKey: ["admin", "stats"] });
+    },
   });
 }
 
@@ -326,3 +347,47 @@ export function useAdminRejectVerification() {
     },
   });
 }
+
+// ─── POST MODERATION ─────────────────────────────────────────────────────────
+
+export function usePendingPosts() {
+  const isAdmin = useIsAdmin();
+  return useQuery({
+    queryKey: ["admin", "pending-posts"],
+    queryFn: fetchPendingPosts,
+    enabled: isAdmin,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useApprovePost() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (postId: string) => {
+      if (!user) throw new Error("Not authenticated");
+      return approvePost(user.uid, user.handle, postId);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "pending-posts"] });
+      qc.invalidateQueries({ queryKey: ["admin", "stats"] });
+      qc.invalidateQueries({ queryKey: ["feed"] });
+    },
+  });
+}
+
+export function useRejectPost() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ postId, reason }: { postId: string; reason: string }) => {
+      if (!user) throw new Error("Not authenticated");
+      return rejectPost(user.uid, user.handle, postId, reason);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "pending-posts"] });
+      qc.invalidateQueries({ queryKey: ["admin", "stats"] });
+    },
+  });
+}
+

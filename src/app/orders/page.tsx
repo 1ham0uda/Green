@@ -6,7 +6,7 @@ import { useBuyerOrders } from "@/features/marketplace/hooks/use-orders";
 
 export default function OrdersPage() {
   return (
-    <main className="container max-w-3xl py-8">
+    <main className="container max-w-2xl pb-24 md:pb-0">
       <AuthGate>
         <OrdersContent />
       </AuthGate>
@@ -18,10 +18,13 @@ function OrdersContent() {
   const { data, isLoading, error } = useBuyerOrders();
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-zinc-900">Your orders</h1>
-      {isLoading && <p className="text-sm text-zinc-500">Loading orders…</p>}
-      {error && <p className="text-sm text-red-600">Failed to load orders.</p>}
+    <div className="space-y-5">
+      <div className="py-5">
+        <p className="eyebrow">Account</p>
+        <h1 className="font-serif text-[28px] font-normal leading-tight tracking-[-0.02em] text-ink">Your Orders</h1>
+      </div>
+      {isLoading && <p className="font-sans text-[13px] text-ink-muted">Loading orders…</p>}
+      {error && <p className="font-sans text-[13px] text-red-600">Failed to load orders.</p>}
       {data && <OrderList orders={data} />}
     </div>
   );

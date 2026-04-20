@@ -6,10 +6,10 @@ export const metadata = { title: "Verification" };
 export default function VerificationSettingsPage() {
   return (
     <AuthGate>
-      <div className="card p-6 sm:p-8">
+      <div className="rounded-2xl border border-surface-border bg-surface p-6 sm:p-8">
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-ink">Account verification</h2>
-          <p className="mt-1 text-sm text-ink-muted">
+          <h2 className="font-serif text-[22px] font-normal tracking-[-0.02em] text-ink">Verification</h2>
+          <p className="mt-1 font-sans text-[13px] text-ink-muted">
             Verified accounts receive a badge on their profile and posts.
           </p>
         </div>

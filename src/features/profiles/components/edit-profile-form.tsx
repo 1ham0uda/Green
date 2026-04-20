@@ -13,6 +13,10 @@ export function EditProfileForm() {
   const [bio, setBio] = useState(user?.bio ?? "");
   const [handle, setHandle] = useState(user?.handle ?? "");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(
+    user?.coverPhotoURL ?? null
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,6 +33,14 @@ export function EditProfileForm() {
     setAvatarFile(file);
   }
 
+  function handleCoverChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    setCoverFile(file);
+    if (file) {
+      setCoverPreview(URL.createObjectURL(file));
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!user) return;
@@ -42,6 +54,7 @@ export function EditProfileForm() {
         bio,
         handle,
         avatarFile,
+        coverFile,
       });
       router.push(`/u/${handle}`);
       router.refresh();
@@ -112,6 +125,32 @@ export function EditProfileForm() {
           onChange={handleFileChange}
           className="text-sm"
         />
+      </div>
+
+      <div className="space-y-2">
+        <label htmlFor="cover" className="text-sm font-medium text-zinc-800">
+          Cover photo
+        </label>
+        <div className="relative h-32 w-full overflow-hidden rounded-2xl border border-surface-border bg-gradient-to-br from-brand-400 via-brand-500 to-brand-700">
+          {coverPreview && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={coverPreview}
+              alt="Cover preview"
+              className="h-full w-full object-cover"
+            />
+          )}
+        </div>
+        <input
+          id="cover"
+          type="file"
+          accept="image/*"
+          onChange={handleCoverChange}
+          className="text-sm"
+        />
+        <p className="text-xs text-ink-muted">
+          Recommended: 1600×400 · Upload to replace the frame behind your avatar.
+        </p>
       </div>
 
       {error && (

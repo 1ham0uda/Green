@@ -11,8 +11,9 @@ export default function AdminOverviewPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight text-ink">Overview</h2>
-        <p className="text-sm text-ink-muted">
+        <p className="eyebrow mb-1">Dashboard</p>
+        <h2 className="font-serif text-[24px] font-normal tracking-[-0.02em] text-ink">Overview</h2>
+        <p className="mt-0.5 font-sans text-[13px] text-ink-muted">
           Real-time platform health and activity.
         </p>
       </div>

@@ -31,15 +31,20 @@ function RequestRow({ req }: { req: VerificationRequest }) {
           </span>
         </div>
         <p className="text-sm text-zinc-600">{req.reason}</p>
-        <p className="text-xs text-zinc-400">
-          {req.createdAt
-            ? req.createdAt.toDate().toLocaleDateString(undefined, {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })
-            : "—"}
-        </p>
+        <div className="flex items-center gap-3 text-xs text-zinc-400">
+          <span>
+            {req.createdAt
+              ? req.createdAt.toDate().toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : "—"}
+          </span>
+          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-zinc-600">
+            {req.postCountSnapshot} post{req.postCountSnapshot !== 1 ? "s" : ""} at time of request
+          </span>
+        </div>
       </div>
 
       <span

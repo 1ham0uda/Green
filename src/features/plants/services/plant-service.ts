@@ -6,7 +6,6 @@ import {
   getDoc,
   getDocs,
   limit,
-  orderBy,
   query,
   serverTimestamp,
   updateDoc,
@@ -102,9 +101,13 @@ export async function fetchPlantsByOwner(ownerId: string): Promise<Plant[]> {
   const q = query(
     collection(firestore, PLANTS),
     where("ownerId", "==", ownerId),
-    orderBy("createdAt", "desc"),
     limit(100)
   );
   const snap = await getDocs(q);
-  return snap.docs.map(mapPlant);
+  const plants = snap.docs.map(mapPlant);
+  return plants.sort((a, b) => {
+    const ta = a.createdAt?.toMillis() ?? 0;
+    const tb = b.createdAt?.toMillis() ?? 0;
+    return tb - ta;
+  });
 }

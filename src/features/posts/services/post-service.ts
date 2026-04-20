@@ -41,8 +41,17 @@ function mapPost(docSnap: QueryDocumentSnapshot | DocumentSnapshot): Post {
     authorPhotoURL: data.authorPhotoURL ?? null,
     authorIsVerified: data.authorIsVerified ?? false,
     caption: data.caption,
-    imageURL: data.imageURL,
+    imageURLs: Array.isArray(data.imageURLs) && data.imageURLs.length > 0
+      ? (data.imageURLs as string[])
+      : data.imageURL
+      ? [data.imageURL as string]
+      : [],
     plantId: data.plantId ?? null,
+    status: (data.status as Post["status"]) ?? "approved",
+    rejectionReason: (data.rejectionReason as string | null) ?? null,
+    country: (data.country as string) ?? "",
+    governorate: (data.governorate as string) ?? "",
+    city: (data.city as string) ?? "",
     likeCount: data.likeCount ?? 0,
     commentCount: data.commentCount ?? 0,
     createdAt: data.createdAt ?? null,
@@ -53,8 +62,12 @@ export async function createPost(
   author: UserProfile,
   input: CreatePostInput
 ): Promise<Post> {
-  const path = buildUserScopedPath("posts", author.uid, input.imageFile.name);
-  const imageURL = await uploadImage(path, input.imageFile);
+  const imageURLs = await Promise.all(
+    input.imageFiles.map((file) => {
+      const path = buildUserScopedPath("posts", author.uid, file.name);
+      return uploadImage(path, file);
+    })
+  );
 
   const authorRef = doc(firestore, USERS, author.uid);
   const postsRef = collection(firestore, POSTS);
@@ -66,8 +79,13 @@ export async function createPost(
     authorPhotoURL: author.photoURL,
     authorIsVerified: author.isVerified ?? false,
     caption: input.caption.trim(),
-    imageURL,
+    imageURLs,
     plantId: input.plantId ?? null,
+    status: "pending" as const,
+    rejectionReason: null,
+    country: author.country ?? "EG",
+    governorate: author.governorate ?? "",
+    city: author.city ?? "",
     likeCount: 0,
     commentCount: 0,
     createdAt: serverTimestamp(),
@@ -93,6 +111,7 @@ export async function fetchFeed(
 ): Promise<FeedPage> {
   const base = query(
     collection(firestore, POSTS),
+    where("status", "==", "approved"),
     orderBy("createdAt", "desc"),
     limit(pageSize)
   );
@@ -100,6 +119,7 @@ export async function fetchFeed(
   const q = cursor
     ? query(
         collection(firestore, POSTS),
+        where("status", "==", "approved"),
         orderBy("createdAt", "desc"),
         startAfter(cursor),
         limit(pageSize)
@@ -114,13 +134,17 @@ export async function fetchFeed(
   return { items, cursor: nextCursor };
 }
 
-export async function fetchPostsByAuthor(authorId: string): Promise<Post[]> {
-  const q = query(
-    collection(firestore, POSTS),
+export async function fetchPostsByAuthor(
+  authorId: string,
+  { approvedOnly = false }: { approvedOnly?: boolean } = {}
+): Promise<Post[]> {
+  const constraints = [
     where("authorId", "==", authorId),
+    ...(approvedOnly ? [where("status", "==", "approved")] : []),
     orderBy("createdAt", "desc"),
-    limit(50)
-  );
+    limit(50),
+  ];
+  const q = query(collection(firestore, POSTS), ...constraints);
   const snap = await getDocs(q);
   return snap.docs.map(mapPost);
 }

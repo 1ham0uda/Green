@@ -28,6 +28,7 @@ function mapRequest(d: { id: string; data: () => Record<string, unknown> }): Ver
     reviewedBy: (data.reviewedBy as string | null) ?? null,
     createdAt: (data.createdAt as VerificationRequest["createdAt"]) ?? null,
     reviewedAt: (data.reviewedAt as VerificationRequest["reviewedAt"]) ?? null,
+    postCountSnapshot: (data.postCountSnapshot as number) ?? 0,
   };
 }
 
@@ -65,6 +66,7 @@ export async function requestVerification(
     reviewedBy: null,
     createdAt: serverTimestamp(),
     reviewedAt: null,
+    postCountSnapshot: user.postCount,
   });
 }
 

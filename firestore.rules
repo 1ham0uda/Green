@@ -28,17 +28,37 @@ service cloud.firestore {
       return isAuth() && userDoc().isBanned != true;
     }
 
+    // ─── Handle registry ────────────────────────────────────────────────────
+    // Written atomically during signup via transaction. No updates — handles are permanent.
+    match /handles/{handle} {
+      allow read: if true;
+      allow create: if isAuth() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
     // ─── Users ──────────────────────────────────────────────────────────────
     match /users/{uid} {
       allow read: if true;
       allow create: if isOwner(uid);
-      allow update: if isOwner(uid) || isAdmin();
+      // Owners may only update profile-level fields; privileged fields (role,
+      // isBanned, isVerified, etc.) are admin-only to prevent self-escalation.
+      allow update: if isAdmin()
+                    || (isOwner(uid)
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys()
+                             .hasOnly(['displayName', 'bio', 'photoURL',
+                                       'coverPhotoURL', 'handle',
+                                       'country', 'governorate', 'city',
+                                       'updatedAt']));
       allow delete: if isAdmin();
     }
 
     // ─── Posts ──────────────────────────────────────────────────────────────
     match /posts/{postId} {
-      allow read: if true;
+      // Approved posts are public; pending/rejected only visible to the author or admin
+      allow read: if resource.data.status == "approved"
+                  || (isAuth() && resource.data.authorId == request.auth.uid)
+                  || isAdmin();
       allow create: if isAuth() && notBanned();
       allow update: if (isAuth() && resource.data.authorId == request.auth.uid)
                     || isAdmin();
@@ -72,18 +92,38 @@ service cloud.firestore {
     // ─── Plants ─────────────────────────────────────────────────────────────
     match /plants/{plantId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create: if isAuth() && notBanned()
+                    && request.resource.data.ownerId == request.auth.uid;
+      allow update: if (isAuth() && resource.data.ownerId == request.auth.uid)
+                    || isAdmin();
+      allow delete: if (isAuth() && resource.data.ownerId == request.auth.uid)
+                    || isAdmin();
     }
 
     // ─── Competitions ────────────────────────────────────────────────────────
     match /competitions/{competitionId} {
       allow read: if true;
       allow write: if isAdmin();
+
+      match /entries/{entryId} {
+        allow read: if true;
+        allow create: if isAuth() && notBanned()
+                      && request.resource.data.userId == request.auth.uid;
+        allow update, delete: if isAdmin();
+
+        match /votes/{userId} {
+          allow read: if true;
+          allow write: if isOwner(userId) && notBanned();
+        }
+      }
     }
 
     // ─── Products ────────────────────────────────────────────────────────────
     match /products/{productId} {
-      allow read: if true;
+      // Approved products are public; pending/rejected only visible to the vendor or admin
+      allow read: if resource.data.status == "approved"
+                  || (isAuth() && resource.data.vendorId == request.auth.uid)
+                  || isAdmin();
       allow create: if isBusiness()
                     && notBanned()
                     && request.resource.data.vendorId == request.auth.uid;
@@ -150,6 +190,80 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isAuth();
       allow update, delete: if false;
+    }
+
+    // ─── Groups ──────────────────────────────────────────────────────────────
+    match /groups/{groupId} {
+      allow read: if true;
+      allow create: if isAuth() && notBanned()
+                    && request.resource.data.creatorId == request.auth.uid;
+      allow update: if isAuth()
+                    && (resource.data.creatorId == request.auth.uid || isAdmin());
+      allow delete: if isAuth()
+                    && (resource.data.creatorId == request.auth.uid || isAdmin());
+    }
+
+    match /groupMembers/{memberId} {
+      allow read: if true;
+      allow create: if isAuth() && notBanned()
+                    && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
+    match /groupPosts/{postId} {
+      allow read: if true;
+      allow create: if isAuth() && notBanned()
+                    && request.resource.data.authorId == request.auth.uid
+                    && exists(/databases/$(database)/documents/groupMembers/$(request.resource.data.groupId + "_" + request.auth.uid));
+      allow delete: if isAuth()
+                    && (resource.data.authorId == request.auth.uid || isAdmin());
+      allow update: if false;
+    }
+
+    // ─── Stories ─────────────────────────────────────────────────────────────
+    match /stories/{storyId} {
+      allow read: if true;
+      allow create: if isAuth() && notBanned()
+                    && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAuth() && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+
+    // ─── Announcements ───────────────────────────────────────────────────────
+    match /announcements/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ─── Ads ─────────────────────────────────────────────────────────────────
+    match /ads/{adId} {
+      // Approved ads are public; others only visible to the owner or admin
+      allow read: if resource.data.status == "approved"
+                  || (isAuth() && resource.data.vendorId == request.auth.uid)
+                  || isAdmin();
+      allow create: if isBusiness()
+                    && notBanned()
+                    && request.resource.data.vendorId == request.auth.uid;
+      allow update: if isAdmin()
+                    || (isAuth() && resource.data.vendorId == request.auth.uid
+                        && resource.data.status == "pending");
+      allow delete: if isAdmin();
+    }
+
+    match /adImpressions/{impId} {
+      allow read: if isAdmin();
+      allow create: if true;
+      allow update, delete: if false;
+    }
+
+    // ─── Highlights ──────────────────────────────────────────────────────────
+    match /highlights/{highlightId} {
+      allow read: if true;
+      allow create: if isAuth() && notBanned()
+                    && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAuth() && resource.data.uid == request.auth.uid;
+      allow update: if false;
     }
   }
 }

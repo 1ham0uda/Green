@@ -18,29 +18,28 @@ export default function AdminCompetitionsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-zinc-900">Competitions</h2>
-        <Link href="/admin/competitions/new" className="btn-primary">
+        <div>
+          <p className="eyebrow mb-1">Admin</p>
+          <h2 className="font-serif text-[24px] font-normal tracking-[-0.02em] text-ink">Competitions</h2>
+        </div>
+        <Link href="/admin/competitions/new" className="btn-primary btn-sm">
           New competition
         </Link>
       </div>
 
-      {isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
+      {isLoading && <p className="font-sans text-[13px] text-ink-muted">Loading…</p>}
 
       {competitions?.length === 0 && (
-        <div className="card p-8 text-center text-sm text-zinc-500">
-          No competitions yet.
-        </div>
+        <p className="font-sans text-[13px] text-ink-muted">No competitions yet.</p>
       )}
 
       <div className="space-y-3">
         {competitions?.map((comp) => (
-          <div key={comp.id} className="card p-4">
+          <div key={comp.id} className="rounded-2xl border border-surface-border bg-surface p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="font-semibold text-zinc-900">{comp.title}</p>
-                <p className="text-sm text-zinc-500">
-                  {comp.entryCount} entries
-                </p>
+                <p className="font-sans text-[14px] font-medium text-ink">{comp.title}</p>
+                <p className="eyebrow mt-0.5">{comp.entryCount} entries</p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -61,10 +60,7 @@ export default function AdminCompetitionsPage() {
                   ))}
                 </select>
 
-                <Link
-                  href={`/competitions/${comp.id}`}
-                  className="btn-secondary text-sm"
-                >
+                <Link href={`/competitions/${comp.id}`} className="btn-secondary btn-sm">
                   View
                 </Link>
 
@@ -75,7 +71,7 @@ export default function AdminCompetitionsPage() {
                       void deleteComp.mutateAsync(comp.id);
                     }
                   }}
-                  className="btn-secondary text-sm text-red-700"
+                  className="btn-danger btn-sm"
                 >
                   Delete
                 </button>

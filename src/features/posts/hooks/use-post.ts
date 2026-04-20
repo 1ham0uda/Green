@@ -15,10 +15,13 @@ import {
 } from "../services/post-service";
 import type { CreatePostInput } from "../types";
 
-export function useAuthorPosts(authorId: string | null | undefined) {
+export function useAuthorPosts(
+  authorId: string | null | undefined,
+  { approvedOnly = false }: { approvedOnly?: boolean } = {}
+) {
   return useQuery({
-    queryKey: ["posts", "author", authorId],
-    queryFn: () => fetchPostsByAuthor(authorId as string),
+    queryKey: ["posts", "author", authorId, { approvedOnly }],
+    queryFn: () => fetchPostsByAuthor(authorId as string, { approvedOnly }),
     enabled: Boolean(authorId),
   });
 }

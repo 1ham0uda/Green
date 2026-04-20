@@ -7,6 +7,7 @@ export interface UpdateProfileInput {
   bio?: string;
   handle?: string;
   avatarFile?: File | null;
+  coverFile?: File | null;
 }
 
 export interface FollowEdge {

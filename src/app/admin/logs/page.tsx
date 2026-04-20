@@ -7,13 +7,14 @@ export default function AdminLogsPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-zinc-900">
-        System logs ({logs?.length ?? 0})
-      </h2>
+      <div>
+        <p className="eyebrow mb-1">Admin</p>
+        <h2 className="font-serif text-[24px] font-normal tracking-[-0.02em] text-ink">System Logs ({logs?.length ?? 0})</h2>
+      </div>
 
-      {isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
+      {isLoading && <p className="font-sans text-[13px] text-ink-muted">Loading…</p>}
 
-      <div className="card divide-y divide-surface-border overflow-hidden text-sm">
+      <div className="rounded-2xl border border-surface-border bg-surface divide-y divide-surface-border overflow-hidden font-sans text-[13px]">
         {logs?.length === 0 && (
           <p className="p-6 text-center text-zinc-500">No logs yet.</p>
         )}

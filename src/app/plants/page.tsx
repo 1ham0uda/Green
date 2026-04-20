@@ -7,7 +7,7 @@ import { useMyPlants } from "@/features/plants/hooks/use-plants";
 
 export default function MyPlantsPage() {
   return (
-    <main className="container py-8">
+    <main className="container max-w-5xl pb-24 md:pb-0">
       <AuthGate>
         <MyPlantsContent />
       </AuthGate>
@@ -19,25 +19,29 @@ function MyPlantsContent() {
   const { data, isLoading, error } = useMyPlants();
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5">
+      <div className="flex items-center justify-between py-5">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">My plants</h1>
-          <p className="text-sm text-zinc-500">
-            Track what you&apos;re growing and post growth updates.
-          </p>
+          <p className="eyebrow">Garden</p>
+          <h1 className="font-serif text-[28px] font-normal leading-tight tracking-[-0.02em] text-ink">
+            My Plants
+          </h1>
         </div>
-        <Link href="/plants/new" className="btn-primary">
+        <Link href="/plants/new" className="btn-primary btn-sm flex items-center gap-1.5">
           Add plant
         </Link>
       </div>
 
       {isLoading && (
-        <p className="text-sm text-zinc-500">Loading your plants…</p>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="skeleton h-48 rounded-2xl" />
+          ))}
+        </div>
       )}
 
       {error && (
-        <p className="text-sm text-red-600" role="alert">
+        <p className="font-sans text-[13px] text-red-600" role="alert">
           Failed to load plants.
         </p>
       )}

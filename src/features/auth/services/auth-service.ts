@@ -13,6 +13,7 @@ import {
   getDocs,
   limit,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -34,13 +35,14 @@ import type {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function mapProfile(d: Record<string, unknown>): UserProfile {
+export function mapProfile(d: Record<string, unknown>): UserProfile {
   return {
     uid: d.uid as string,
     email: (d.email as string) ?? "",
     displayName: (d.displayName as string) ?? "Gardener",
     handle: (d.handle as string) ?? (d.uid as string),
     photoURL: (d.photoURL as string | null) ?? null,
+    coverPhotoURL: (d.coverPhotoURL as string | null) ?? null,
     bio: (d.bio as string) ?? "",
     role: ((d.role as string) ?? "user") as UserRole,
     isVerified: (d.isVerified as boolean) ?? false,
@@ -50,6 +52,9 @@ function mapProfile(d: Record<string, unknown>): UserProfile {
     followerCount: (d.followerCount as number) ?? 0,
     followingCount: (d.followingCount as number) ?? 0,
     postCount: (d.postCount as number) ?? 0,
+    country: (d.country as string) ?? "EG",
+    governorate: (d.governorate as string) ?? "",
+    city: (d.city as string) ?? "",
     createdAt: (d.createdAt as UserProfile["createdAt"]) ?? null,
     updatedAt: (d.updatedAt as UserProfile["updatedAt"]) ?? null,
   };
@@ -71,18 +76,6 @@ export async function isHandleAvailable(handle: string): Promise<boolean> {
   );
   const snap = await getDocs(q);
   return snap.empty;
-}
-
-async function assertHandleAvailable(handle: string, excludeUid?: string): Promise<void> {
-  const q = query(
-    collection(firestore, COLLECTIONS.users),
-    where("handle", "==", handle),
-    limit(1)
-  );
-  const snap = await getDocs(q);
-  if (!snap.empty && snap.docs[0].id !== excludeUid) {
-    throw new Error("That username is already taken. Please choose another.");
-  }
 }
 
 // ─── Profile creation ────────────────────────────────────────────────────────
@@ -107,6 +100,7 @@ async function createUserDocument(
     displayName: user.displayName ?? overrides.displayName ?? "New Gardener",
     handle,
     photoURL: user.photoURL ?? null,
+    coverPhotoURL: null,
     bio: "",
     role: (overrides.role ?? "user") as UserRole,
     isVerified: false,
@@ -116,6 +110,9 @@ async function createUserDocument(
     followerCount: 0,
     followingCount: 0,
     postCount: 0,
+    country: overrides.country ?? "EG",
+    governorate: overrides.governorate ?? "",
+    city: overrides.city ?? "",
   };
 
   await setDoc(ref, {
@@ -140,8 +137,6 @@ export async function signUpWithEmail(input: SignUpInput): Promise<UserProfile> 
     throw new Error("Username can only contain lowercase letters, numbers, and underscores.");
   }
 
-  await assertHandleAvailable(handle);
-
   const credential = await createUserWithEmailAndPassword(
     firebaseAuth,
     input.email,
@@ -150,12 +145,48 @@ export async function signUpWithEmail(input: SignUpInput): Promise<UserProfile> 
 
   await updateProfile(credential.user, { displayName: input.displayName });
 
-  const profile = await createUserDocument(credential.user, {
-    displayName: input.displayName,
-    handle,
-    role: input.role,
-  });
+  // Atomically claim the handle — transaction fails if another user already owns it
+  const handleRef = doc(firestore, COLLECTIONS.handles, handle);
+  const userRef = doc(firestore, COLLECTIONS.users, credential.user.uid);
 
+  try {
+    await runTransaction(firestore, async (tx) => {
+      const handleSnap = await tx.get(handleRef);
+      if (handleSnap.exists()) {
+        throw new Error("That username is already taken. Please choose another.");
+      }
+      tx.set(handleRef, { uid: credential.user.uid, claimedAt: serverTimestamp() });
+      tx.set(userRef, {
+        uid: credential.user.uid,
+        email: credential.user.email ?? "",
+        displayName: input.displayName,
+        handle,
+        photoURL: null,
+        coverPhotoURL: null,
+        bio: "",
+        role: input.role ?? "user",
+        isVerified: false,
+        verificationStatus: "none",
+        isBanned: false,
+        bannedReason: null,
+        followerCount: 0,
+        followingCount: 0,
+        postCount: 0,
+        country: input.country,
+        governorate: input.governorate,
+        city: input.city,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    });
+  } catch (err) {
+    // Clean up the Firebase Auth account so the email isn't permanently locked
+    await credential.user.delete().catch(() => null);
+    throw err;
+  }
+
+  const snap = await getDoc(userRef);
+  const profile = mapProfile(snap.data()!);
   void log("auth.signup", profile.uid);
   return profile;
 }
