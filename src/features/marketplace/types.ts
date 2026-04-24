@@ -53,7 +53,7 @@ export interface Cart {
   updatedAt: Timestamp | null;
 }
 
-export type OrderStatus = "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
+export type OrderStatus = "pending" | "accepted" | "processing" | "confirmed" | "shipped" | "delivered" | "cancelled";
 
 export type PaymentMethod = "cod";
 

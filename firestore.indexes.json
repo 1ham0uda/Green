@@ -186,6 +186,22 @@
         { "fieldPath": "orderId", "order": "ASCENDING" },
         { "fieldPath": "buyerId", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "savedPosts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "savedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "mutedUsers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "muterId", "order": "ASCENDING" },
+        { "fieldPath": "mutedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

@@ -3,11 +3,13 @@
 import type { OrderStatus } from "../types";
 
 const STATUSES: { value: OrderStatus; label: string }[] = [
-  { value: "pending", label: "Pending" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "shipped", label: "Shipped" },
-  { value: "delivered", label: "Delivered" },
-  { value: "cancelled", label: "Cancelled" },
+  { value: "pending",    label: "Pending"    },
+  { value: "accepted",   label: "Accepted"   },
+  { value: "processing", label: "Processing" },
+  { value: "confirmed",  label: "Confirmed"  },
+  { value: "shipped",    label: "Shipped"    },
+  { value: "delivered",  label: "Delivered"  },
+  { value: "cancelled",  label: "Cancelled"  },
 ];
 
 interface OrderStatusSelectProps {

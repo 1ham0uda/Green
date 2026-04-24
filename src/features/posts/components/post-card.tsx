@@ -5,9 +5,13 @@ import Link from "next/link";
 import { useState } from "react";
 import { LikeButton } from "./like-button";
 import { ShareButton } from "./share-button";
+import { PostOptionsMenu } from "./post-options-menu";
 import { VerificationBadge } from "@/features/verification/components/verification-badge";
 import { Avatar } from "@/components/ui/avatar";
 import { Icon } from "@/components/ui/icon";
+import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useFollowStatus, useFollowMutations } from "@/features/profiles/hooks/use-follow";
+import { useIsPostSaved, useSavePost } from "../hooks/use-saved-posts";
 import type { Post } from "../types";
 
 function formatRelative(post: Post): string {
@@ -26,9 +30,27 @@ function formatRelative(post: Post): string {
 
 export function PostCard({ post }: { post: Post }) {
   const [activeIdx, setActiveIdx] = useState(0);
-  const [saved, setSaved] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const images = post.imageURLs;
   const hasMultiple = images.length > 1;
+
+  const { user } = useAuth();
+  const viewerId = user?.uid ?? null;
+  const isOwnPost = viewerId === post.authorId;
+
+  // Bookmark
+  const { data: isSaved } = useIsPostSaved(viewerId, post.id);
+  const { save, unsave } = useSavePost(viewerId, post.id);
+  const savedLocal = isSaved ?? false;
+
+  // Follow
+  const { data: isFollowing } = useFollowStatus(viewerId, post.authorId);
+  const { follow, unfollow } = useFollowMutations(
+    viewerId,
+    user?.handle ?? null,
+    post.authorId,
+    user?.displayName ?? null
+  );
 
   function prev(e: React.MouseEvent) {
     e.preventDefault();
@@ -37,6 +59,12 @@ export function PostCard({ post }: { post: Post }) {
   function next(e: React.MouseEvent) {
     e.preventDefault();
     setActiveIdx((i) => Math.min(images.length - 1, i + 1));
+  }
+
+  function toggleSave() {
+    if (!viewerId) return;
+    if (savedLocal) unsave.mutate();
+    else save.mutate();
   }
 
   return (
@@ -51,28 +79,66 @@ export function PostCard({ post }: { post: Post }) {
           />
         </Link>
         <div className="min-w-0 flex-1">
-          <Link
-            href={`/u/${post.authorHandle}`}
-            className="flex items-center gap-1.5 transition-opacity hover:opacity-75"
-          >
-            <span className="text-[13px] font-medium text-ink">
-              {post.authorHandle}
-            </span>
-            {post.authorIsVerified && <VerificationBadge size="sm" />}
-          </Link>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link
+              href={`/u/${post.authorHandle}`}
+              className="flex items-center gap-1.5 transition-opacity hover:opacity-75"
+            >
+              <span className="text-[13px] font-medium text-ink">
+                {post.authorHandle}
+              </span>
+              {post.authorIsVerified && <VerificationBadge size="sm" />}
+            </Link>
+            {/* Follow button — only show for other users when logged in */}
+            {viewerId && !isOwnPost && (
+              isFollowing ? (
+                <button
+                  type="button"
+                  onClick={() => unfollow.mutate()}
+                  disabled={unfollow.isPending}
+                  className="text-[11px] font-medium text-ink-muted border border-surface-border rounded-full px-2 py-0.5 hover:bg-surface-hover transition"
+                >
+                  Following
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => follow.mutate()}
+                  disabled={follow.isPending}
+                  className="flex items-center gap-1 text-[11px] font-medium text-brand-600 border border-brand-300 rounded-full px-2 py-0.5 hover:bg-brand-50 transition"
+                >
+                  <Icon.UserPlus size={11} />
+                  Follow
+                </button>
+              )
+            )}
+          </div>
           {(post.governorate || post.city) && (
             <p className="mt-0.5 text-[11px] tracking-[0.01em] text-ink-muted">
               {[post.city, post.governorate].filter(Boolean).join(", ")}
             </p>
           )}
         </div>
-        <button
-          type="button"
-          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-ink-subtle transition hover:bg-surface-hover"
-          aria-label="More options"
-        >
-          <Icon.MoreHorizontal size={18} />
-        </button>
+        <div className="relative flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-ink-subtle transition hover:bg-surface-hover"
+            aria-label="More options"
+            aria-expanded={menuOpen}
+          >
+            <Icon.MoreHorizontal size={18} />
+          </button>
+          {menuOpen && viewerId && (
+            <PostOptionsMenu
+              postId={post.id}
+              postAuthorId={post.authorId}
+              postAuthorHandle={post.authorHandle}
+              viewerId={viewerId}
+              onClose={() => setMenuOpen(false)}
+            />
+          )}
+        </div>
       </header>
 
       {/* ── Image ── */}
@@ -89,16 +155,12 @@ export function PostCard({ post }: { post: Post }) {
             />
           </Link>
 
-          {/* Species italic serif pill — bottom left */}
           {post.plantId && (
             <div className="absolute bottom-3 left-3">
-              <span className="species-pill">
-                {post.plantId}
-              </span>
+              <span className="species-pill">{post.plantId}</span>
             </div>
           )}
 
-          {/* Multi-image navigation */}
           {hasMultiple && (
             <>
               {activeIdx > 0 && (
@@ -119,7 +181,6 @@ export function PostCard({ post }: { post: Post }) {
                   <Icon.ChevronRight size={16} />
                 </button>
               )}
-              {/* dot indicators */}
               <div className="absolute bottom-3 right-3 flex gap-1">
                 {images.map((_, i) => (
                   <button
@@ -151,18 +212,18 @@ export function PostCard({ post }: { post: Post }) {
         >
           <Icon.MessageCircle size={20} />
         </Link>
-        <ShareButton postId={post.id} />
-        {/* spacer */}
+        <ShareButton post={post} />
         <div className="flex-1" />
         <button
           type="button"
-          onClick={() => setSaved((s) => !s)}
-          aria-label="Save"
-          className="flex items-center text-ink transition-opacity hover:opacity-70"
+          onClick={toggleSave}
+          disabled={save.isPending || unsave.isPending}
+          aria-label={savedLocal ? "Unsave" : "Save"}
+          className="flex items-center text-ink transition-opacity hover:opacity-70 disabled:opacity-40"
         >
           <Icon.Bookmark
             size={20}
-            className={saved ? "fill-ink" : "fill-none"}
+            className={savedLocal ? "fill-ink" : "fill-none"}
           />
         </button>
       </div>
@@ -177,7 +238,7 @@ export function PostCard({ post }: { post: Post }) {
         </span>
       </div>
 
-      {/* ── Caption in Newsreader serif ── */}
+      {/* ── Caption ── */}
       {post.caption && (
         <div className="px-4 pt-1.5 pb-1">
           <p className="font-serif text-[17px] leading-[1.4] tracking-[-0.005em] text-ink">

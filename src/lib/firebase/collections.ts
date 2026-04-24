@@ -24,6 +24,8 @@ export const COLLECTIONS = {
   adImpressions: "adImpressions",
   handles: "handles",
   returnRequests: "returnRequests",
+  savedPosts: "savedPosts",
+  mutedUsers: "mutedUsers",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

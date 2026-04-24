@@ -11,12 +11,14 @@ import { Icon } from "@/components/ui/icon";
 import type { OrderStatus } from "@/features/marketplace/types";
 
 const FILTERS: { value: OrderStatus | "all"; label: string }[] = [
-  { value: "all",       label: "All"       },
-  { value: "pending",   label: "Pending"   },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "shipped",   label: "Shipped"   },
-  { value: "delivered", label: "Delivered" },
-  { value: "cancelled", label: "Cancelled" },
+  { value: "all",        label: "All"        },
+  { value: "pending",    label: "Pending"    },
+  { value: "accepted",   label: "Accepted"   },
+  { value: "processing", label: "Processing" },
+  { value: "confirmed",  label: "Confirmed"  },
+  { value: "shipped",    label: "Shipped"    },
+  { value: "delivered",  label: "Delivered"  },
+  { value: "cancelled",  label: "Cancelled"  },
 ];
 
 export default function VendorDashboardPage() {

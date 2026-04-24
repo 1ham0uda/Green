@@ -142,22 +142,33 @@ export function NavBar() {
                           <MenuItem href={`/u/${user.handle}`} icon={<Icon.User size={15} />}>
                             My profile
                           </MenuItem>
-                          <MenuItem href="/settings/profile" icon={<Icon.Settings size={15} />}>
-                            Settings
+                          <MenuItem href="/saved" icon={<Icon.Bookmark size={15} />}>
+                            Saved posts
+                          </MenuItem>
+                          <MenuItem href="/competitions" icon={<Icon.Trophy size={15} />}>
+                            Competitions
                           </MenuItem>
                           <MenuItem href="/orders" icon={<Icon.ShoppingBag size={15} />}>
                             Orders
                           </MenuItem>
                           {(user.role === "business" || user.role === "admin") && (
-                            <MenuItem href="/vendor/ads" icon={<Icon.Megaphone size={15} />}>
-                              Ads manager
-                            </MenuItem>
+                            <>
+                              <MenuItem href="/vendor/orders" icon={<Icon.Package size={15} />}>
+                                Vendor dashboard
+                              </MenuItem>
+                              <MenuItem href="/vendor/ads" icon={<Icon.Megaphone size={15} />}>
+                                Ads manager
+                              </MenuItem>
+                            </>
                           )}
                           {user.role === "admin" && (
                             <MenuItem href="/admin" icon={<Icon.Shield size={15} />}>
                               Admin panel
                             </MenuItem>
                           )}
+                          <MenuItem href="/settings/profile" icon={<Icon.Settings size={15} />}>
+                            Settings
+                          </MenuItem>
                           <div className="my-1 h-px bg-surface-border" />
                           <button
                             type="button"
@@ -215,11 +226,11 @@ function MenuItem({
 
 function MobileBottomNav({ pathname }: { pathname: string }) {
   const links = [
-    { href: "/feed",          label: "Feed",   icon: Icon.Home },
-    { href: "/search",        label: "Search", icon: Icon.Search },
-    { href: "/posts/new",     label: "Post",   icon: Icon.Plus, featured: true },
-    { href: "/marketplace",   label: "Shop",   icon: Icon.ShoppingBag },
-    { href: "/notifications", label: "Alerts", icon: Icon.Bell },
+    { href: "/feed",        label: "Feed",   icon: Icon.Home },
+    { href: "/search",      label: "Search", icon: Icon.Search },
+    { href: "/posts/new",   label: "Post",   icon: Icon.Plus, featured: true },
+    { href: "/groups",      label: "Groups", icon: Icon.Users },
+    { href: "/marketplace", label: "Shop",   icon: Icon.ShoppingBag },
   ];
 
   return (

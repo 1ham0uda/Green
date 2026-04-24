@@ -3,6 +3,7 @@
 import { ProfileHeader } from "@/features/profiles/components/profile-header";
 import { ProfilePosts } from "@/features/profiles/components/profile-posts";
 import { StoryHighlights } from "@/features/highlights/components/story-highlights";
+import { BusinessProducts } from "@/features/profiles/components/business-products";
 import { useProfileByHandle } from "@/features/profiles/hooks/use-profile";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -49,6 +50,9 @@ export default function ProfilePage({ params }: ProfilePageProps) {
         <div>
           <ProfileHeader profile={profile} />
           <StoryHighlights uid={profile.uid} />
+          {(profile.role === "business" || profile.role === "admin") && (
+            <BusinessProducts vendorId={profile.uid} />
+          )}
           <ProfilePosts uid={profile.uid} isSelf={user?.uid === profile.uid} />
         </div>
       )}

@@ -12,19 +12,23 @@ import { OrderInvoiceModal } from "./order-invoice-modal";
 const STATUS_STEPS: OrderStatus[] = ["pending", "confirmed", "shipped", "delivered"];
 
 const STATUS_META: Record<OrderStatus, { label: string; color: string; bg: string }> = {
-  pending:   { label: "Pending",   color: "text-amber-700",  bg: "bg-amber-100"  },
-  confirmed: { label: "Confirmed", color: "text-blue-700",   bg: "bg-blue-100"   },
-  shipped:   { label: "Shipped",   color: "text-violet-700", bg: "bg-violet-100" },
-  delivered: { label: "Delivered", color: "text-brand-700",  bg: "bg-brand-100"  },
-  cancelled: { label: "Cancelled", color: "text-red-700",    bg: "bg-red-100"    },
+  pending:    { label: "Pending",    color: "text-amber-700",   bg: "bg-amber-100"   },
+  accepted:   { label: "Accepted",   color: "text-sky-700",     bg: "bg-sky-100"     },
+  processing: { label: "Processing", color: "text-indigo-700",  bg: "bg-indigo-100"  },
+  confirmed:  { label: "Confirmed",  color: "text-blue-700",    bg: "bg-blue-100"    },
+  shipped:    { label: "Shipped",    color: "text-violet-700",  bg: "bg-violet-100"  },
+  delivered:  { label: "Delivered",  color: "text-brand-700",   bg: "bg-brand-100"   },
+  cancelled:  { label: "Cancelled",  color: "text-red-700",     bg: "bg-red-100"     },
 };
 
 const STEP_ICONS: Record<OrderStatus, typeof Icon.Clock> = {
-  pending:   Icon.Clock,
-  confirmed: Icon.Check,
-  shipped:   Icon.Package,
-  delivered: Icon.ShoppingBag,
-  cancelled: Icon.X,
+  pending:    Icon.Clock,
+  accepted:   Icon.Check,
+  processing: Icon.Package,
+  confirmed:  Icon.Check,
+  shipped:    Icon.Package,
+  delivered:  Icon.ShoppingBag,
+  cancelled:  Icon.X,
 };
 
 interface OrderCardProps {
