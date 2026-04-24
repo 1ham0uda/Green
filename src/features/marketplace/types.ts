@@ -81,6 +81,7 @@ export interface Order {
   vendorId: string;
   lines: OrderLine[];
   subtotal: number;
+  shippingFee: number;
   currency: string;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
@@ -92,4 +93,26 @@ export interface Order {
 export interface PlaceOrderInput {
   items: CartItem[];
   shippingAddress: ShippingAddress;
+}
+
+export type ReturnStatus = "pending" | "approved" | "rejected";
+
+export interface ReturnRequest {
+  id: string;
+  orderId: string;
+  buyerId: string;
+  vendorId: string;
+  reason: string;
+  imageURLs: string[];
+  status: ReturnStatus;
+  adminNote: string | null;
+  createdAt: Timestamp | null;
+  updatedAt: Timestamp | null;
+}
+
+export interface CreateReturnInput {
+  orderId: string;
+  vendorId: string;
+  reason: string;
+  imageFiles: File[];
 }

@@ -14,6 +14,7 @@ const NAV = [
   { href: "/admin/verification", label: "Verification", icon: Icon.Check },
   { href: "/admin/competitions", label: "Competitions", icon: Icon.Trophy },
   { href: "/admin/marketplace", label: "Marketplace", icon: Icon.ShoppingBag },
+  { href: "/admin/returns", label: "Returns", icon: Icon.RotateCcw },
   { href: "/admin/ads", label: "Ads", icon: Icon.Megaphone },
   { href: "/admin/moderation", label: "Moderation", icon: Icon.Shield },
   { href: "/admin/logs", label: "Logs", icon: Icon.Eye },

@@ -8,7 +8,8 @@
       "Bash(node -e \"console.log\\(require\\('./node_modules/typescript/package.json'\\).version\\)\")",
       "Bash(npx tsc *)",
       "Bash(grep -E \"\\(feed|^\\\\S+/page\\\\.tsx$\\)\")",
-      "WebFetch(domain:api.anthropic.com)"
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(npx firebase-tools *)"
     ]
   }
 }

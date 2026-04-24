@@ -146,6 +146,18 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ─── Return Requests ────────────────────────────────────────────────────
+    match /returnRequests/{requestId} {
+      allow read: if isAuth()
+                  && (resource.data.buyerId == request.auth.uid
+                      || resource.data.vendorId == request.auth.uid
+                      || isAdmin());
+      allow create: if isAuth() && notBanned()
+                    && request.resource.data.buyerId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
     // ─── Carts ──────────────────────────────────────────────────────────────
     match /carts/{userId} {
       allow read, write: if isOwner(userId);

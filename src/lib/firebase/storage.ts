@@ -11,7 +11,7 @@ export async function uploadImage(
 }
 
 export function buildUserScopedPath(
-  folder: "avatars" | "covers" | "posts" | "plants" | "products" | "stories" | "groups" | "ads",
+  folder: "avatars" | "covers" | "posts" | "plants" | "products" | "stories" | "groups" | "ads" | "returns",
   uid: string,
   filename: string
 ): string {

@@ -10,6 +10,7 @@ import { usePlaceCodOrder } from "@/features/marketplace/hooks/use-orders";
 import { Icon } from "@/components/ui/icon";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatPrice } from "@/lib/utils/format";
+import { SHIPPING_FEE } from "@/features/marketplace/services/order-service";
 import type { ShippingAddress } from "@/features/marketplace/types";
 
 export default function CheckoutPage() {
@@ -29,6 +30,7 @@ function CheckoutContent() {
   const [error, setError] = useState<string | null>(null);
 
   const subtotal = cart.subtotal();
+  const total = subtotal + SHIPPING_FEE;
 
   if (cart.items.length === 0) {
     return (
@@ -99,11 +101,19 @@ function CheckoutContent() {
             </li>
           ))}
         </ul>
-        <div className="flex items-center justify-between border-t border-surface-border pt-4">
-          <span className="text-sm font-medium text-ink-muted">Subtotal</span>
-          <span className="text-lg font-bold text-ink">
-            {formatPrice(subtotal)}
-          </span>
+        <div className="border-t border-surface-border pt-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-ink-muted">Subtotal</span>
+            <span className="text-sm font-medium text-ink">{formatPrice(subtotal)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-ink-muted">Shipping</span>
+            <span className="text-sm font-medium text-ink">{formatPrice(SHIPPING_FEE)}</span>
+          </div>
+          <div className="flex items-center justify-between border-t border-surface-border pt-2">
+            <span className="text-sm font-semibold text-ink">Total</span>
+            <span className="text-lg font-bold text-ink">{formatPrice(total)}</span>
+          </div>
         </div>
       </section>
 
@@ -128,7 +138,7 @@ function CheckoutContent() {
         <p className="eyebrow">Shipping Information</p>
         <ShippingForm
           onSubmit={handleSubmit}
-          submitLabel={`Place order · ${formatPrice(subtotal)}`}
+          submitLabel={`Place order · ${formatPrice(total)}`}
           pending={placeOrder.isPending}
         />
         {error && (

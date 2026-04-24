@@ -23,6 +23,7 @@ export const COLLECTIONS = {
   ads: "ads",
   adImpressions: "adImpressions",
   handles: "handles",
+  returnRequests: "returnRequests",
 } as const;
 
 export type CollectionName = (typeof COLLECTIONS)[keyof typeof COLLECTIONS];

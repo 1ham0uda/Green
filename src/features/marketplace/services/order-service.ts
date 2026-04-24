@@ -2,6 +2,7 @@ import {
   collection,
   getDocs,
   limit,
+  orderBy,
   query,
   runTransaction,
   serverTimestamp,
@@ -21,6 +22,8 @@ import type {
   ShippingAddress,
 } from "../types";
 import { saveCart } from "./cart-service";
+
+export const SHIPPING_FEE = 90;
 
 const ORDERS = COLLECTIONS.orders;
 
@@ -42,6 +45,7 @@ function mapOrder(snap: QueryDocumentSnapshot | DocumentSnapshot): Order {
     vendorId: data.vendorId,
     lines: (data.lines ?? []) as OrderLine[],
     subtotal: data.subtotal ?? 0,
+    shippingFee: data.shippingFee ?? SHIPPING_FEE,
     currency: data.currency ?? "EGP",
     status: data.status ?? "pending",
     paymentMethod: data.paymentMethod ?? "cod",
@@ -95,6 +99,7 @@ export async function placeCodOrder(
       vendorId,
       lines,
       subtotal,
+      shippingFee: SHIPPING_FEE,
       currency,
       status: "pending" as OrderStatus,
       paymentMethod: "cod" as const,
@@ -142,6 +147,7 @@ export async function placeCodOrder(
       vendorId,
       lines,
       subtotal,
+      shippingFee: SHIPPING_FEE,
       currency,
       status: "pending",
       paymentMethod: "cod",
@@ -156,32 +162,27 @@ export async function placeCodOrder(
   return orders;
 }
 
-function sortByCreatedDesc(orders: Order[]): Order[] {
-  return orders.sort((a, b) => {
-    const ta = a.createdAt?.toMillis() ?? 0;
-    const tb = b.createdAt?.toMillis() ?? 0;
-    return tb - ta;
-  });
-}
 
 export async function fetchBuyerOrders(buyerId: string): Promise<Order[]> {
   const q = query(
     collection(firestore, ORDERS),
     where("buyerId", "==", buyerId),
+    orderBy("createdAt", "desc"),
     limit(50)
   );
   const snap = await getDocs(q);
-  return sortByCreatedDesc(snap.docs.map(mapOrder));
+  return snap.docs.map(mapOrder);
 }
 
 export async function fetchVendorOrders(vendorId: string): Promise<Order[]> {
   const q = query(
     collection(firestore, ORDERS),
     where("vendorId", "==", vendorId),
+    orderBy("createdAt", "desc"),
     limit(100)
   );
   const snap = await getDocs(q);
-  return sortByCreatedDesc(snap.docs.map(mapOrder));
+  return snap.docs.map(mapOrder);
 }
 
 export async function updateOrderStatus(
