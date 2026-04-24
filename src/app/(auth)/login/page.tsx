@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { GoogleButton } from "@/features/auth/components/google-button";
 import { LoginForm } from "@/features/auth/components/login-form";
 
 export const metadata = { title: "Sign in" };
@@ -18,14 +17,6 @@ export default function LoginPage() {
       </div>
 
       <LoginForm />
-
-      <div className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-surface-border" />
-        <span className="eyebrow">or</span>
-        <span className="h-px flex-1 bg-surface-border" />
-      </div>
-
-      <GoogleButton />
 
       <p className="mt-5 text-center font-sans text-[13px] text-ink-muted">
         Don&apos;t have an account?{" "}
