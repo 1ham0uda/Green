@@ -134,8 +134,10 @@ export function PostCard({ post }: { post: Post }) {
               postId={post.id}
               postAuthorId={post.authorId}
               postAuthorHandle={post.authorHandle}
+              currentPlantId={post.plantId}
               viewerId={viewerId}
               onClose={() => setMenuOpen(false)}
+              onDeleted={() => setMenuOpen(false)}
             />
           )}
         </div>

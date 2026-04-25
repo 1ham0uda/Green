@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useNotifications } from "@/features/notifications/hooks/use-notifications";
 import { cn } from "@/lib/utils/cn";
 import { Avatar } from "@/components/ui/avatar";
 import { Icon } from "@/components/ui/icon";
@@ -22,6 +23,7 @@ const NAV_LINKS = [
 
 export function NavBar() {
   const { user, signOut, initialized } = useAuth();
+  const { unreadCount } = useNotifications();
   const pathname = usePathname();
   const [scrolled, setScrolled]   = useState(false);
   const [menuOpen, setMenuOpen]   = useState(false);
@@ -50,7 +52,7 @@ export function NavBar() {
       >
         <div className="container flex h-14 items-center justify-between gap-4">
 
-          {/* ── Logo — editorial "Green." ── */}
+          {/* ── Logo ── */}
           <Link
             href="/"
             className="flex items-baseline gap-0.5 transition-opacity hover:opacity-75"
@@ -61,7 +63,7 @@ export function NavBar() {
             <span className="font-serif text-[22px] text-brand-500">.</span>
           </Link>
 
-          {/* ── Desktop nav — plain text links ── */}
+          {/* ── Desktop nav ── */}
           <nav className="hidden items-center gap-0.5 md:flex">
             {NAV_LINKS.map((link) => {
               const active = isActive(link.href);
@@ -71,9 +73,7 @@ export function NavBar() {
                   href={link.href}
                   className={cn(
                     "relative rounded-full px-3.5 py-1.5 font-sans text-[13px] font-medium transition-colors",
-                    active
-                      ? "text-ink"
-                      : "text-ink-muted hover:text-ink"
+                    active ? "text-ink" : "text-ink-muted hover:text-ink"
                   )}
                 >
                   {link.label}
@@ -96,6 +96,7 @@ export function NavBar() {
                 <div className="hidden sm:block">
                   <CartLink />
                 </div>
+                {/* Bell visible on sm+ screens; mobile users access via dropdown */}
                 <div className="hidden sm:block">
                   <NotificationBell />
                 </div>
@@ -110,12 +111,18 @@ export function NavBar() {
                   type="button"
                   onClick={() => setMenuOpen((o) => !o)}
                   aria-label="Account menu"
-                  className="flex items-center gap-2 rounded-full border border-surface-border bg-surface px-2 py-1 pr-3 transition hover:bg-surface-hover"
+                  className="relative flex items-center gap-2 rounded-full border border-surface-border bg-surface px-2 py-1 pr-3 transition hover:bg-surface-hover"
                 >
                   <Avatar src={user.photoURL} name={user.displayName} size="sm" />
                   <span className="hidden font-sans text-[13px] font-medium text-ink sm:inline">
                     @{user.handle}
                   </span>
+                  {/* Unread notification dot — mobile only (bell is hidden on mobile) */}
+                  {unreadCount > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-surface sm:hidden">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </button>
 
                 <AnimatePresence>
@@ -142,6 +149,16 @@ export function NavBar() {
                           <MenuItem href={`/u/${user.handle}`} icon={<Icon.User size={15} />}>
                             My profile
                           </MenuItem>
+                          {/* Notifications — visible on mobile only (hidden sm: the bell covers desktop) */}
+                          <div className="sm:hidden">
+                            <MenuItemWithBadge
+                              href="/notifications"
+                              icon={<Icon.Bell size={15} />}
+                              badge={unreadCount}
+                            >
+                              Notifications
+                            </MenuItemWithBadge>
+                          </div>
                           <MenuItem href="/saved" icon={<Icon.Bookmark size={15} />}>
                             Saved posts
                           </MenuItem>
@@ -155,6 +172,9 @@ export function NavBar() {
                             <>
                               <MenuItem href="/vendor/orders" icon={<Icon.Package size={15} />}>
                                 Vendor dashboard
+                              </MenuItem>
+                              <MenuItem href="/vendor/returns" icon={<Icon.RotateCcw size={15} />}>
+                                Returns
                               </MenuItem>
                               <MenuItem href="/vendor/ads" icon={<Icon.Megaphone size={15} />}>
                                 Ads manager
@@ -220,6 +240,33 @@ function MenuItem({
     >
       <span className="text-ink-subtle">{icon}</span>
       {children}
+    </Link>
+  );
+}
+
+function MenuItemWithBadge({
+  href,
+  icon,
+  badge,
+  children,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  badge: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-2.5 rounded-xl px-3 py-2 font-sans text-[13px] text-ink-muted transition hover:bg-surface-hover hover:text-ink"
+    >
+      <span className="text-ink-subtle">{icon}</span>
+      <span className="flex-1">{children}</span>
+      {badge > 0 && (
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
     </Link>
   );
 }

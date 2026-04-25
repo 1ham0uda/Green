@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useVendorProducts } from "@/features/marketplace/hooks/use-products";
+import { usePublicVendorProducts } from "@/features/marketplace/hooks/use-products";
 import { ProductCard } from "@/features/marketplace/components/product-card";
 import { Icon } from "@/components/ui/icon";
 
@@ -10,9 +10,7 @@ interface BusinessProductsProps {
 }
 
 export function BusinessProducts({ vendorId }: BusinessProductsProps) {
-  const { data: products, isLoading } = useVendorProducts(vendorId);
-
-  const visible = products?.filter((p) => p.status === "approved" && p.isActive) ?? [];
+  const { data: products, isLoading } = usePublicVendorProducts(vendorId);
 
   if (isLoading) {
     return (
@@ -27,7 +25,7 @@ export function BusinessProducts({ vendorId }: BusinessProductsProps) {
     );
   }
 
-  if (!visible.length) return null;
+  if (!products?.length) return null;
 
   return (
     <section className="border-b border-surface-border px-5 py-5 sm:px-6">
@@ -46,7 +44,7 @@ export function BusinessProducts({ vendorId }: BusinessProductsProps) {
         </Link>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {visible.slice(0, 6).map((product) => (
+        {products.slice(0, 6).map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}
       </div>

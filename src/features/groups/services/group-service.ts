@@ -18,6 +18,13 @@ import {
 import { firestore } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { buildUserScopedPath, uploadImage } from "@/lib/firebase/storage";
+import {
+  validateImageFile,
+  validateImageFiles,
+  validateString,
+  ValidationError,
+} from "@/lib/security/validation";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import type {
   CreateGroupInput,
   Group,
@@ -29,6 +36,10 @@ import type { UserProfile } from "@/features/auth/types";
 const G = COLLECTIONS.groups;
 const GM = COLLECTIONS.groupMembers;
 const GP = COLLECTIONS.groupPosts;
+const ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+const GROUP_COVER_MAX_BYTES = 8 * 1024 * 1024;
+const GROUP_POST_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+const MAX_GROUP_POST_IMAGES = 10;
 
 function mapGroup(id: string, d: Record<string, unknown>): Group {
   return {
@@ -73,6 +84,7 @@ export async function fetchPublicGroups(): Promise<Group[]> {
 }
 
 export async function fetchGroupById(groupId: string): Promise<Group | null> {
+  if (!ID_RE.test(groupId)) return null;
   const snap = await getDoc(doc(firestore, G, groupId));
   return snap.exists() ? mapGroup(snap.id, snap.data() as Record<string, unknown>) : null;
 }
@@ -95,27 +107,40 @@ export async function createGroup(
   creator: UserProfile,
   input: CreateGroupInput
 ): Promise<Group> {
+  checkRateLimit("group.create");
+
+  if (creator.isBanned) {
+    throw new Error("Your account is suspended.");
+  }
+
+  const name = validateString(input.name,
+    { field: "Group name", min: 3, max: 80 });
+  const description = validateString(input.description,
+    { field: "Description", min: 0, max: 500 });
+  const isPublic = Boolean(input.isPublic);
+
   let coverImageURL: string | null = null;
   if (input.coverFile) {
-    const path = buildUserScopedPath("groups", creator.uid, input.coverFile.name);
-    coverImageURL = await uploadImage(path, input.coverFile);
+    const file = validateImageFile(input.coverFile,
+      { field: "Cover image", maxBytes: GROUP_COVER_MAX_BYTES });
+    const path = buildUserScopedPath("groups", creator.uid, file.name);
+    coverImageURL = await uploadImage(path, file);
   }
 
   const payload = {
-    name: input.name.trim(),
-    description: input.description.trim(),
+    name,
+    description,
     coverImageURL,
     creatorId: creator.uid,
     creatorHandle: creator.handle,
     memberCount: 1,
     postCount: 0,
-    isPublic: input.isPublic,
+    isPublic,
     createdAt: serverTimestamp(),
   };
 
   const ref = await addDoc(collection(firestore, G), payload);
 
-  // Auto-join creator as admin
   await setDoc(doc(firestore, GM, `${ref.id}_${creator.uid}`), {
     groupId: ref.id,
     userId: creator.uid,
@@ -137,6 +162,10 @@ export async function joinGroup(
   groupId: string,
   user: UserProfile
 ): Promise<void> {
+  checkRateLimit("group.join");
+  if (!ID_RE.test(groupId) || !ID_RE.test(user.uid)) {
+    throw new ValidationError("Invalid group or user id.");
+  }
   const memberId = memberDocId(groupId, user.uid);
   const memberRef = doc(firestore, GM, memberId);
   const groupRef = doc(firestore, G, groupId);
@@ -158,6 +187,10 @@ export async function joinGroup(
 }
 
 export async function leaveGroup(groupId: string, userId: string): Promise<void> {
+  checkRateLimit("group.join");
+  if (!ID_RE.test(groupId) || !ID_RE.test(userId)) {
+    throw new ValidationError("Invalid group or user id.");
+  }
   const memberId = memberDocId(groupId, userId);
   const memberRef = doc(firestore, GM, memberId);
   const groupRef = doc(firestore, G, groupId);
@@ -201,8 +234,26 @@ export async function createGroupPost(
   imageFiles: File[],
   caption: string
 ): Promise<GroupPost> {
+  checkRateLimit("group.post.create");
+
+  if (author.isBanned) {
+    throw new Error("Your account is suspended.");
+  }
+  if (!ID_RE.test(groupId)) throw new ValidationError("Invalid group id.");
+
+  const cleanCaption = validateString(caption,
+    { field: "Caption", min: 0, max: 2200 });
+  const files = validateImageFiles(imageFiles ?? [], {
+    field: "Image",
+    maxBytes: GROUP_POST_IMAGE_MAX_BYTES,
+    maxCount: MAX_GROUP_POST_IMAGES,
+  });
+  if (files.length === 0 && cleanCaption.length === 0) {
+    throw new ValidationError("Post must contain a caption or an image.");
+  }
+
   const imageURLs = await Promise.all(
-    imageFiles.map((f) => {
+    files.map((f) => {
       const path = buildUserScopedPath("posts", author.uid, f.name);
       return uploadImage(path, f);
     })
@@ -214,7 +265,7 @@ export async function createGroupPost(
     authorHandle: author.handle,
     authorDisplayName: author.displayName,
     authorPhotoURL: author.photoURL,
-    caption: caption.trim(),
+    caption: cleanCaption,
     imageURLs,
     likeCount: 0,
     commentCount: 0,
@@ -239,6 +290,9 @@ export async function fetchGroupPosts(groupId: string): Promise<GroupPost[]> {
 }
 
 export async function deleteGroupPost(postId: string, groupId: string): Promise<void> {
+  if (!ID_RE.test(postId) || !ID_RE.test(groupId)) {
+    throw new ValidationError("Invalid identifier.");
+  }
   await deleteDoc(doc(firestore, GP, postId));
   await updateDoc(doc(firestore, G, groupId), { postCount: increment(-1) });
 }

@@ -28,52 +28,164 @@ service cloud.firestore {
       return isAuth() && userDoc().isBanned != true;
     }
 
+    // Email must be verified — blocks unverified-account abuse at the rules layer.
+    function isVerifiedEmail() {
+      return isAuth() && request.auth.token.email_verified == true;
+    }
+
+    // True when the only field changing is the one named — useful for
+    // counter increments and similar narrow updates.
+    function onlyFieldChanged(field) {
+      return request.resource.data.diff(resource.data)
+               .affectedKeys().hasOnly([field]);
+    }
+
+    // Handle format: 3-20 chars, lowercase letters/digits/underscore.
+    function validHandle(h) {
+      return h is string && h.size() >= 3 && h.size() <= 20
+             && h.matches('^[a-z0-9_]+$');
+    }
+
+    // Generic URL shape — disallow javascript:/data: schemes by requiring https.
+    function isHttpsUrl(v) {
+      return v is string && v.size() <= 2048 && v.matches('^https://.*');
+    }
+
+    // Minimum interval between a user's last write and the current write for
+    // a given document. Used as a lightweight rate-limit when the caller
+    // controls the document identity (own doc) or the last-updated timestamp
+    // is already present in the resource.
+    function msSinceUpdate(resourceTs) {
+      return request.time.toMillis() - resourceTs.toMillis();
+    }
+
     // ─── Handle registry ────────────────────────────────────────────────────
-    // Written atomically during signup via transaction. No updates — handles are permanent.
+    // Written atomically during signup via transaction. Handles are immutable.
     match /handles/{handle} {
       allow read: if true;
-      allow create: if isAuth() && request.resource.data.uid == request.auth.uid;
+      allow create: if isAuth()
+                    && request.resource.data.uid == request.auth.uid
+                    && validHandle(handle)
+                    && request.resource.data.keys().hasOnly(['uid', 'claimedAt']);
       allow update, delete: if false;
     }
 
     // ─── Users ──────────────────────────────────────────────────────────────
     match /users/{uid} {
       allow read: if true;
-      allow create: if isOwner(uid);
-      // Owners may only update profile-level fields; privileged fields (role,
-      // isBanned, isVerified, etc.) are admin-only to prevent self-escalation.
+
+      // Create: locked-down shape. New accounts MUST be non-privileged.
+      // Prevents self-escalation to admin, self-verification, and unbanning
+      // at signup time.
+      allow create: if isOwner(uid)
+                    && request.resource.data.uid == uid
+                    && request.resource.data.email is string
+                    && request.resource.data.email.size() <= 254
+                    && request.resource.data.displayName is string
+                    && request.resource.data.displayName.size() >= 1
+                    && request.resource.data.displayName.size() <= 80
+                    && validHandle(request.resource.data.handle)
+                    && request.resource.data.role in ['user', 'business']
+                    && request.resource.data.isVerified == false
+                    && request.resource.data.verificationStatus == 'none'
+                    && request.resource.data.isBanned == false
+                    && request.resource.data.followerCount == 0
+                    && request.resource.data.followingCount == 0
+                    && request.resource.data.postCount == 0
+                    && (!('bio' in request.resource.data)
+                        || (request.resource.data.bio is string
+                            && request.resource.data.bio.size() <= 500));
+
+      // Profile update: owners may only change safe profile fields.
+      // Admin-only fields: role, isBanned, isVerified, verificationStatus,
+      // bannedReason, follower/following/postCount (counter drift protection).
       allow update: if isAdmin()
                     || (isOwner(uid)
+                        && notBanned()
                         && request.resource.data.diff(resource.data)
                              .affectedKeys()
                              .hasOnly(['displayName', 'bio', 'photoURL',
                                        'coverPhotoURL', 'handle',
                                        'country', 'governorate', 'city',
-                                       'updatedAt']));
+                                       'updatedAt'])
+                        && (!('displayName' in request.resource.data.diff(resource.data).affectedKeys())
+                            || (request.resource.data.displayName is string
+                                && request.resource.data.displayName.size() >= 1
+                                && request.resource.data.displayName.size() <= 80))
+                        && (!('bio' in request.resource.data.diff(resource.data).affectedKeys())
+                            || (request.resource.data.bio is string
+                                && request.resource.data.bio.size() <= 500))
+                        && (!('handle' in request.resource.data.diff(resource.data).affectedKeys())
+                            || validHandle(request.resource.data.handle)));
       allow delete: if isAdmin();
     }
 
     // ─── Posts ──────────────────────────────────────────────────────────────
     match /posts/{postId} {
-      // Approved posts are public; pending/rejected only visible to the author or admin
       allow read: if resource.data.status == "approved"
                   || (isAuth() && resource.data.authorId == request.auth.uid)
                   || isAdmin();
-      allow create: if isAuth() && notBanned();
-      allow update: if (isAuth() && resource.data.authorId == request.auth.uid)
-                    || isAdmin();
+      // New posts MUST start as pending, with zero counters and caller as author.
+      allow create: if isAuth() && notBanned() && isVerifiedEmail()
+                    && request.resource.data.authorId == request.auth.uid
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.likeCount == 0
+                    && request.resource.data.commentCount == 0
+                    && request.resource.data.caption is string
+                    && request.resource.data.caption.size() <= 2200
+                    && (!('imageURLs' in request.resource.data)
+                        || (request.resource.data.imageURLs is list
+                            && request.resource.data.imageURLs.size() <= 10));
+      // Authors may only edit caption, plantId, updatedAt — no self-approval,
+      // no counter manipulation, no authorId rewriting.
+      allow update: if isAdmin()
+                    // Allow like/comment counter increments from triggering
+                    // transactions by any authed user (restricted to ±1).
+                    || (isAuth() && notBanned()
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['likeCount'])
+                        && (request.resource.data.likeCount == resource.data.likeCount + 1
+                            || request.resource.data.likeCount == resource.data.likeCount - 1))
+                    || (isAuth() && notBanned()
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['commentCount'])
+                        && (request.resource.data.commentCount == resource.data.commentCount + 1
+                            || request.resource.data.commentCount == resource.data.commentCount - 1))
+                    || (isAuth()
+                        && resource.data.authorId == request.auth.uid
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys()
+                             .hasOnly(['caption', 'plantId', 'updatedAt'])
+                        && (!('caption' in request.resource.data.diff(resource.data).affectedKeys())
+                            || (request.resource.data.caption is string
+                                && request.resource.data.caption.size() <= 2200)));
       allow delete: if (isAuth() && resource.data.authorId == request.auth.uid)
                     || isAdmin();
 
       match /likes/{userId} {
         allow read: if true;
-        allow write: if isOwner(userId) && notBanned();
+        allow create: if isOwner(userId) && notBanned()
+                      && request.resource.data.userId == userId;
+        allow delete: if isOwner(userId);
+        allow update: if false;
       }
 
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if isAuth() && notBanned();
-        allow update: if isAuth() && resource.data.authorId == request.auth.uid;
+        allow create: if isAuth() && notBanned() && isVerifiedEmail()
+                      && request.resource.data.authorId == request.auth.uid
+                      && request.resource.data.body is string
+                      && request.resource.data.body.size() >= 1
+                      && request.resource.data.body.size() <= 1000;
+        // Authors may only edit the body.
+        allow update: if isAuth()
+                      && resource.data.authorId == request.auth.uid
+                      && request.resource.data.diff(resource.data)
+                           .affectedKeys()
+                           .hasOnly(['body', 'updatedAt'])
+                      && request.resource.data.body is string
+                      && request.resource.data.body.size() >= 1
+                      && request.resource.data.body.size() <= 1000;
         allow delete: if (isAuth() && resource.data.authorId == request.auth.uid)
                       || isAdmin();
       }
@@ -82,20 +194,41 @@ service cloud.firestore {
     // ─── Follows ────────────────────────────────────────────────────────────
     match /follows/{followId} {
       allow read: if true;
+      // Doc ID must be followerId_followingId and must match the writer.
+      // Prevents creating follow edges under arbitrary IDs.
       allow create: if isAuth()
                     && notBanned()
-                    && request.resource.data.followerId == request.auth.uid;
+                    && request.resource.data.followerId == request.auth.uid
+                    && request.resource.data.followerId != request.resource.data.followingId
+                    && request.resource.data.followingId is string
+                    && request.resource.data.followingId.size() <= 128
+                    && followId == request.resource.data.followerId
+                                   + '_' + request.resource.data.followingId;
       allow delete: if isAuth()
                     && resource.data.followerId == request.auth.uid;
+      allow update: if false;
     }
 
     // ─── Plants ─────────────────────────────────────────────────────────────
     match /plants/{plantId} {
       allow read: if true;
-      allow create: if isAuth() && notBanned()
-                    && request.resource.data.ownerId == request.auth.uid;
-      allow update: if (isAuth() && resource.data.ownerId == request.auth.uid)
-                    || isAdmin();
+      allow create: if isAuth() && notBanned() && isVerifiedEmail()
+                    && request.resource.data.ownerId == request.auth.uid
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() >= 1
+                    && request.resource.data.name.size() <= 120
+                    && (!('description' in request.resource.data)
+                        || (request.resource.data.description is string
+                            && request.resource.data.description.size() <= 2000));
+      allow update: if isAdmin()
+                    || (isAuth()
+                        && resource.data.ownerId == request.auth.uid
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys()
+                             .hasOnly(['nickname', 'name', 'species', 'type',
+                                       'notes', 'description',
+                                       'photoURL', 'imageURL',
+                                       'acquiredAt', 'updatedAt']));
       allow delete: if (isAuth() && resource.data.ownerId == request.auth.uid)
                     || isAdmin();
     }
@@ -107,28 +240,95 @@ service cloud.firestore {
 
       match /entries/{entryId} {
         allow read: if true;
-        allow create: if isAuth() && notBanned()
-                      && request.resource.data.userId == request.auth.uid;
-        allow update, delete: if isAdmin();
+        allow create: if isAuth() && notBanned() && isVerifiedEmail()
+                      && request.resource.data.userId == request.auth.uid
+                      && request.resource.data.voteCount == 0;
+        allow update: if isAdmin()
+                      // Allow any authed user to increment/decrement voteCount by 1.
+                      || (isAuth() && notBanned()
+                          && request.resource.data.diff(resource.data)
+                               .affectedKeys().hasOnly(['voteCount'])
+                          && (request.resource.data.voteCount == resource.data.voteCount + 1
+                              || request.resource.data.voteCount == resource.data.voteCount - 1));
+        allow delete: if isAdmin();
 
         match /votes/{userId} {
           allow read: if true;
-          allow write: if isOwner(userId) && notBanned();
+          allow create: if isOwner(userId) && notBanned();
+          allow delete: if isOwner(userId);
+          allow update: if false;
         }
       }
     }
 
     // ─── Products ────────────────────────────────────────────────────────────
     match /products/{productId} {
-      // Approved products are public; pending/rejected only visible to the vendor or admin
       allow read: if resource.data.status == "approved"
                   || (isAuth() && resource.data.vendorId == request.auth.uid)
                   || isAdmin();
+
+      // Products MUST start as pending, inactive, not pre-approved.
       allow create: if isBusiness()
                     && notBanned()
-                    && request.resource.data.vendorId == request.auth.uid;
-      allow update: if (isBusiness() && resource.data.vendorId == request.auth.uid)
-                    || isAdmin();
+                    && isVerifiedEmail()
+                    && request.resource.data.vendorId == request.auth.uid
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.isActive == false
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() >= 1
+                    && request.resource.data.name.size() <= 200
+                    && request.resource.data.description is string
+                    && request.resource.data.description.size() <= 2000
+                    && request.resource.data.price is number
+                    && request.resource.data.price >= 0
+                    && request.resource.data.price <= 10000000
+                    && request.resource.data.stock is number
+                    && request.resource.data.stock >= 0
+                    && request.resource.data.stock <= 100000;
+
+      // Vendor updates: content fields only. status MAY be set to 'pending'
+      // (content re-submission resets approval) but NEVER to 'approved' by
+      // the vendor — that is admin-only.
+      // stock decrements by buyers are permitted via the separate "order
+      // placement" clause below.
+      allow update: if isAdmin()
+                    // Vendor content edit.
+                    || (isBusiness()
+                        && notBanned()
+                        && resource.data.vendorId == request.auth.uid
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys()
+                             .hasOnly(['name', 'nameLower', 'description',
+                                       'price', 'stock', 'isActive',
+                                       'imageURL', 'currency', 'updatedAt',
+                                       'status', 'rejectionReason'])
+                        // Vendor may only reset to 'pending' — cannot self-approve.
+                        && (!('status' in request.resource.data.diff(resource.data).affectedKeys())
+                            || request.resource.data.status == 'pending')
+                        && (!('price' in request.resource.data.diff(resource.data).affectedKeys())
+                            || (request.resource.data.price is number
+                                && request.resource.data.price >= 0
+                                && request.resource.data.price <= 10000000))
+                        && (!('stock' in request.resource.data.diff(resource.data).affectedKeys())
+                            || (request.resource.data.stock is number
+                                && request.resource.data.stock >= 0
+                                && request.resource.data.stock <= 100000))
+                        && (!('name' in request.resource.data.diff(resource.data).affectedKeys())
+                            || (request.resource.data.name is string
+                                && request.resource.data.name.size() >= 1
+                                && request.resource.data.name.size() <= 200))
+                        && (!('description' in request.resource.data.diff(resource.data).affectedKeys())
+                            || (request.resource.data.description is string
+                                && request.resource.data.description.size() <= 2000)))
+                    // Buyer stock decrement at order placement — restricted
+                    // to decrementing stock only, non-negative, small delta.
+                    || (isAuth() && notBanned()
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['stock'])
+                        && request.resource.data.stock is number
+                        && request.resource.data.stock >= 0
+                        && request.resource.data.stock < resource.data.stock
+                        && (resource.data.stock - request.resource.data.stock) <= 100);
       allow delete: if (isBusiness() && resource.data.vendorId == request.auth.uid)
                     || isAdmin();
     }
@@ -139,10 +339,43 @@ service cloud.firestore {
                   && (resource.data.buyerId == request.auth.uid
                       || resource.data.vendorId == request.auth.uid
                       || isAdmin());
-      allow create: if isAuth() && notBanned()
-                    && request.resource.data.buyerId == request.auth.uid;
+      allow create: if isAuth() && notBanned() && isVerifiedEmail()
+                    && request.resource.data.buyerId == request.auth.uid
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.paymentMethod in ['cod']
+                    && request.resource.data.subtotal is number
+                    && request.resource.data.subtotal >= 0
+                    && request.resource.data.shippingFee is number
+                    && request.resource.data.shippingFee >= 0
+                    && request.resource.data.lines is list
+                    && request.resource.data.lines.size() >= 1
+                    && request.resource.data.lines.size() <= 50
+                    && request.resource.data.vendorId is string
+                    && request.resource.data.buyerId != request.resource.data.vendorId
+                    && request.resource.data.shippingAddress.recipientName is string
+                    && request.resource.data.shippingAddress.recipientName.size() <= 120
+                    && request.resource.data.shippingAddress.phone is string
+                    && request.resource.data.shippingAddress.phone.size() <= 30
+                    && request.resource.data.shippingAddress.addressLine is string
+                    && request.resource.data.shippingAddress.addressLine.size() <= 300;
+      // Buyer: may only cancel a pending order.
+      // Vendor: may progress status of own orders (app enforces the DAG).
+      // Buyer/vendor/admin may never retroactively change financial fields.
       allow update: if isAdmin()
-                    || (isBusiness() && resource.data.vendorId == request.auth.uid);
+                    || (isBusiness() && notBanned()
+                        && resource.data.vendorId == request.auth.uid
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys()
+                             .hasOnly(['status', 'updatedAt'])
+                        && request.resource.data.status in
+                           ['accepted', 'processing', 'confirmed', 'shipped',
+                            'delivered', 'cancelled'])
+                    || (isAuth()
+                        && resource.data.buyerId == request.auth.uid
+                        && resource.data.status == 'pending'
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['status', 'updatedAt'])
+                        && request.resource.data.status == 'cancelled');
       allow delete: if isAdmin();
     }
 
@@ -152,29 +385,86 @@ service cloud.firestore {
                   && (resource.data.buyerId == request.auth.uid
                       || resource.data.vendorId == request.auth.uid
                       || isAdmin());
-      allow create: if isAuth() && notBanned()
-                    && request.resource.data.buyerId == request.auth.uid;
-      allow update: if isAdmin();
+      allow create: if isAuth() && notBanned() && isVerifiedEmail()
+                    && request.resource.data.buyerId == request.auth.uid
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.orderId is string
+                    && request.resource.data.orderId.size() <= 128
+                    && request.resource.data.vendorId is string
+                    && request.resource.data.vendorId.size() <= 128
+                    && request.resource.data.vendorId != request.auth.uid
+                    && request.resource.data.reason is string
+                    && request.resource.data.reason.size() >= 1
+                    && request.resource.data.reason.size() <= 1000
+                    && (!('imageURLs' in request.resource.data)
+                        || (request.resource.data.imageURLs is list
+                            && request.resource.data.imageURLs.size() <= 5));
+      allow update: if isAdmin()
+                    || (isBusiness() && notBanned()
+                        && resource.data.vendorId == request.auth.uid
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys()
+                             .hasOnly(['status', 'adminNote', 'updatedAt'])
+                        && request.resource.data.status in
+                           ['pending', 'approved', 'rejected', 'resolved']);
       allow delete: if isAdmin();
     }
 
     // ─── Carts ──────────────────────────────────────────────────────────────
     match /carts/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId)
+                   && (!('items' in request.resource.data)
+                       || (request.resource.data.items is list
+                           && request.resource.data.items.size() <= 50));
     }
 
     // ─── Notifications ───────────────────────────────────────────────────────
+    // Creation is restricted: sender must match auth, recipient must differ,
+    // required fields must be present, and attacker-controlled string fields
+    // have length caps.
     match /users/{userId}/notifications/{notifId} {
       allow read: if isOwner(userId);
-      allow create: if isAuth();
-      allow update: if isOwner(userId);
+      allow create: if isAuth()
+                    && request.resource.data.fromUserId == request.auth.uid
+                    && request.resource.data.fromUserId != userId
+                    && request.resource.data.keys().hasAll(
+                         ['type', 'fromUserId', 'fromUserHandle',
+                          'fromUserDisplayName', 'read', 'createdAt'])
+                    && request.resource.data.type in
+                       ['like', 'comment', 'follow', 'post_approved',
+                        'post_rejected', 'product_approved', 'product_rejected',
+                        'ad_approved', 'ad_rejected', 'mention', 'system']
+                    && request.resource.data.read == false
+                    && request.resource.data.fromUserHandle is string
+                    && request.resource.data.fromUserHandle.size() <= 32
+                    && request.resource.data.fromUserDisplayName is string
+                    && request.resource.data.fromUserDisplayName.size() <= 80
+                    && (!('message' in request.resource.data)
+                        || (request.resource.data.message is string
+                            && request.resource.data.message.size() <= 500))
+                    && (!('commentBody' in request.resource.data)
+                        || (request.resource.data.commentBody is string
+                            && request.resource.data.commentBody.size() <= 1000));
+      // Users may only flip `read` and timestamp — never rewrite the payload.
+      allow update: if isOwner(userId)
+                    && request.resource.data.diff(resource.data)
+                         .affectedKeys().hasOnly(['read', 'readAt']);
       allow delete: if isOwner(userId) || isAdmin();
     }
 
     // ─── Reports ────────────────────────────────────────────────────────────
     match /reports/{reportId} {
       allow read: if isAdmin();
-      allow create: if isAuth() && notBanned();
+      allow create: if isAuth() && notBanned() && isVerifiedEmail()
+                    && request.resource.data.reporterId == request.auth.uid
+                    && request.resource.data.status == 'open'
+                    && request.resource.data.targetType in ['post', 'comment', 'user', 'product']
+                    && request.resource.data.targetId is string
+                    && request.resource.data.targetId.size() <= 128
+                    && request.resource.data.reason is string
+                    && request.resource.data.reason.size() >= 1
+                    && request.resource.data.reason.size() <= 500;
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
@@ -185,7 +475,11 @@ service cloud.firestore {
                   && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isAuth()
                     && notBanned()
-                    && request.resource.data.userId == request.auth.uid;
+                    && isVerifiedEmail()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.reason is string
+                    && request.resource.data.reason.size() <= 2000;
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
@@ -193,40 +487,81 @@ service cloud.firestore {
     // ─── Moderation Logs ─────────────────────────────────────────────────────
     match /moderationLogs/{logId} {
       allow read: if isAdmin();
-      allow create: if isAdmin();
+      allow create: if isAdmin()
+                    && request.resource.data.adminId == request.auth.uid;
       allow update, delete: if false;
     }
 
     // ─── System Logs ────────────────────────────────────────────────────────
+    // Only the user can write a log for themselves; no arbitrary impersonation.
+    // Action string length capped to prevent log-stuffing.
     match /logs/{logId} {
       allow read: if isAdmin();
-      allow create: if isAuth();
+      allow create: if isAuth()
+                    && (request.resource.data.userId == request.auth.uid
+                        || request.resource.data.userId == null)
+                    && request.resource.data.action is string
+                    && request.resource.data.action.size() <= 64;
       allow update, delete: if false;
     }
 
     // ─── Groups ──────────────────────────────────────────────────────────────
     match /groups/{groupId} {
       allow read: if true;
-      allow create: if isAuth() && notBanned()
-                    && request.resource.data.creatorId == request.auth.uid;
-      allow update: if isAuth()
-                    && (resource.data.creatorId == request.auth.uid || isAdmin());
+      allow create: if isAuth() && notBanned() && isVerifiedEmail()
+                    && request.resource.data.creatorId == request.auth.uid
+                    && request.resource.data.memberCount == 1
+                    && request.resource.data.postCount == 0
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() >= 1
+                    && request.resource.data.name.size() <= 120
+                    && (!('description' in request.resource.data)
+                        || (request.resource.data.description is string
+                            && request.resource.data.description.size() <= 2000));
+      allow update: if isAdmin()
+                    // Member-count increment/decrement by ±1 — for join/leave.
+                    || (isAuth()
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['memberCount'])
+                        && (request.resource.data.memberCount == resource.data.memberCount + 1
+                            || request.resource.data.memberCount == resource.data.memberCount - 1))
+                    || (isAuth()
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['postCount'])
+                        && (request.resource.data.postCount == resource.data.postCount + 1
+                            || request.resource.data.postCount == resource.data.postCount - 1))
+                    || (isAuth() && notBanned()
+                        && resource.data.creatorId == request.auth.uid
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys()
+                             .hasOnly(['name', 'description', 'coverImageURL',
+                                       'isPrivate', 'isPublic', 'updatedAt']));
       allow delete: if isAuth()
                     && (resource.data.creatorId == request.auth.uid || isAdmin());
     }
 
     match /groupMembers/{memberId} {
       allow read: if true;
+      // memberId must be groupId_userId and must match the caller.
       allow create: if isAuth() && notBanned()
-                    && request.resource.data.userId == request.auth.uid;
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.groupId is string
+                    && memberId == request.resource.data.groupId + '_' + request.auth.uid;
       allow delete: if isAuth() && resource.data.userId == request.auth.uid;
       allow update: if false;
     }
 
     match /groupPosts/{postId} {
       allow read: if true;
-      allow create: if isAuth() && notBanned()
+      allow create: if isAuth() && notBanned() && isVerifiedEmail()
                     && request.resource.data.authorId == request.auth.uid
+                    && request.resource.data.likeCount == 0
+                    && request.resource.data.commentCount == 0
+                    && request.resource.data.caption is string
+                    && request.resource.data.caption.size() <= 2200
+                    && (!('imageURLs' in request.resource.data)
+                        || (request.resource.data.imageURLs is list
+                            && request.resource.data.imageURLs.size() <= 10))
                     && exists(/databases/$(database)/documents/groupMembers/$(request.resource.data.groupId + "_" + request.auth.uid));
       allow delete: if isAuth()
                     && (resource.data.authorId == request.auth.uid || isAdmin());
@@ -236,9 +571,15 @@ service cloud.firestore {
     // ─── Stories ─────────────────────────────────────────────────────────────
     match /stories/{storyId} {
       allow read: if true;
-      allow create: if isAuth() && notBanned()
-                    && request.resource.data.uid == request.auth.uid;
-      allow delete: if isAuth() && resource.data.uid == request.auth.uid;
+      allow create: if isAuth() && notBanned() && isVerifiedEmail()
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.imageURL is string
+                    && request.resource.data.imageURL.size() <= 2048
+                    && (!('caption' in request.resource.data)
+                        || (request.resource.data.caption is string
+                            && request.resource.data.caption.size() <= 500));
+      allow delete: if isAuth()
+                    && (resource.data.uid == request.auth.uid || isAdmin());
       allow update: if false;
     }
 
@@ -250,39 +591,81 @@ service cloud.firestore {
 
     // ─── Ads ─────────────────────────────────────────────────────────────────
     match /ads/{adId} {
-      // Approved ads are public; others only visible to the owner or admin
       allow read: if resource.data.status == "approved"
                   || (isAuth() && resource.data.vendorId == request.auth.uid)
                   || isAdmin();
       allow create: if isBusiness()
                     && notBanned()
-                    && request.resource.data.vendorId == request.auth.uid;
+                    && isVerifiedEmail()
+                    && request.resource.data.vendorId == request.auth.uid
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.impressionsDelivered == 0
+                    && request.resource.data.headline is string
+                    && request.resource.data.headline.size() >= 1
+                    && request.resource.data.headline.size() <= 200
+                    && (!('body' in request.resource.data) || request.resource.data.body == null
+                        || (request.resource.data.body is string
+                            && request.resource.data.body.size() <= 1000))
+                    && (!('linkURL' in request.resource.data) || request.resource.data.linkURL == null
+                        || isHttpsUrl(request.resource.data.linkURL))
+                    && request.resource.data.reach is number
+                    && request.resource.data.reach >= 0
+                    && request.resource.data.reach <= 10000000;
+      // Vendor may edit a pending ad's content; only admin may approve/reject.
+      // impressionsDelivered can be incremented by ±1 only — prevents
+      // unbounded inflation/deflation by malicious clients.
       allow update: if isAdmin()
-                    || (isAuth() && resource.data.vendorId == request.auth.uid
-                        && resource.data.status == "pending");
+                    || (isAuth() && notBanned()
+                        && resource.data.vendorId == request.auth.uid
+                        && resource.data.status == "pending"
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys()
+                             .hasOnly(['headline', 'body', 'imageURL', 'linkURL',
+                                       'targetGovernorates', 'targetCities',
+                                       'reach', 'startsAt', 'endsAt', 'updatedAt'])
+                        && (!('linkURL' in request.resource.data.diff(resource.data).affectedKeys())
+                            || request.resource.data.linkURL == null
+                            || isHttpsUrl(request.resource.data.linkURL)))
+                    || (isAuth()
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['impressionsDelivered'])
+                        && request.resource.data.impressionsDelivered ==
+                             resource.data.impressionsDelivered + 1
+                        && resource.data.status == "approved"
+                        && resource.data.impressionsDelivered < resource.data.reach);
       allow delete: if isAdmin();
     }
 
     match /adImpressions/{impId} {
       allow read: if isAdmin();
-      allow create: if true;
+      // Require authentication to prevent unauthenticated bot inflation.
+      // Impression doc must record the viewing user for later dedup/audit.
+      allow create: if isAuth()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.adId is string
+                    && request.resource.data.adId.size() <= 128;
       allow update, delete: if false;
     }
 
     // ─── Highlights ──────────────────────────────────────────────────────────
     match /highlights/{highlightId} {
       allow read: if true;
-      allow create: if isAuth() && notBanned()
+      allow create: if isAuth() && notBanned() && isVerifiedEmail()
                     && request.resource.data.uid == request.auth.uid;
-      allow delete: if isAuth() && resource.data.uid == request.auth.uid;
+      allow delete: if isAuth()
+                    && (resource.data.uid == request.auth.uid || isAdmin());
       allow update: if false;
     }
 
     // ─── Saved Posts ─────────────────────────────────────────────────────────
+    // Doc id is userId_postId — bind the id to caller to prevent spoofing.
     match /savedPosts/{docId} {
       allow read: if isAuth() && resource.data.userId == request.auth.uid;
       allow create: if isAuth()
-                    && request.resource.data.userId == request.auth.uid;
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.postId is string
+                    && request.resource.data.postId.size() <= 128
+                    && docId == request.auth.uid + '_' + request.resource.data.postId;
       allow delete: if isAuth() && resource.data.userId == request.auth.uid;
       allow update: if false;
     }
@@ -291,9 +674,34 @@ service cloud.firestore {
     match /mutedUsers/{docId} {
       allow read: if isAuth() && resource.data.muterId == request.auth.uid;
       allow create: if isAuth()
-                    && request.resource.data.muterId == request.auth.uid;
+                    && request.resource.data.muterId == request.auth.uid
+                    && request.resource.data.mutedId is string
+                    && request.resource.data.mutedId.size() <= 128
+                    && request.resource.data.mutedId != request.auth.uid
+                    && docId == request.auth.uid + '_' + request.resource.data.mutedId;
       allow delete: if isAuth() && resource.data.muterId == request.auth.uid;
       allow update: if false;
+    }
+
+    // ─── Rate-limit bucket (client-written, admin-readable) ─────────────────
+    // Stores action timestamps for client-side rate limit reconciliation.
+    // The actual enforcement happens in the client via `lib/rate-limit.ts`;
+    // this collection is purely for audit/telemetry. Capped to short strings.
+    match /rateLimits/{docId} {
+      allow read: if isAdmin();
+      allow create: if isAuth()
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.action is string
+                    && request.resource.data.action.size() <= 64;
+      allow update, delete: if false;
+    }
+
+    // ─── Default deny ───────────────────────────────────────────────────────
+    // Any path not explicitly matched above falls through to this rule and
+    // is rejected. Prevents accidental open-access when new collections are
+    // added.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

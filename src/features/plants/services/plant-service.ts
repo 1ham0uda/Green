@@ -17,6 +17,12 @@ import { firestore } from "@/lib/firebase/config";
 import { FirestorePatch } from "@/types/firestore";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { buildUserScopedPath, uploadImage } from "@/lib/firebase/storage";
+import {
+  validateImageFile,
+  validateString,
+  ValidationError,
+} from "@/lib/security/validation";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import type {
   CreatePlantInput,
   Plant,
@@ -24,6 +30,8 @@ import type {
 } from "../types";
 
 const PLANTS = COLLECTIONS.plants;
+const ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+const PLANT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 
 function mapPlant(docSnap: QueryDocumentSnapshot | DocumentSnapshot): Plant {
   const data = docSnap.data();
@@ -45,18 +53,27 @@ export async function createPlant(
   ownerId: string,
   input: CreatePlantInput
 ): Promise<Plant> {
-  let imageURL: string | null = null;
+  checkRateLimit("plant.create");
+  if (!ID_RE.test(ownerId)) throw new ValidationError("Invalid owner id.");
 
+  const name = validateString(input.name, { field: "Plant name", min: 1, max: 100 });
+  const type = validateString(input.type, { field: "Plant type", min: 1, max: 100 });
+  const description = validateString(input.description,
+    { field: "Description", min: 0, max: 1000 });
+
+  let imageURL: string | null = null;
   if (input.imageFile) {
-    const path = buildUserScopedPath("plants", ownerId, input.imageFile.name);
-    imageURL = await uploadImage(path, input.imageFile);
+    const file = validateImageFile(input.imageFile,
+      { field: "Plant image", maxBytes: PLANT_IMAGE_MAX_BYTES });
+    const path = buildUserScopedPath("plants", ownerId, file.name);
+    imageURL = await uploadImage(path, file);
   }
 
   const payload = {
     ownerId,
-    name: input.name.trim(),
-    type: input.type,
-    description: input.description.trim(),
+    name,
+    type,
+    description,
     imageURL,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -72,27 +89,45 @@ export async function updatePlant(
   ownerId: string,
   input: UpdatePlantInput
 ): Promise<void> {
+  checkRateLimit("plant.update");
+  if (!ID_RE.test(plantId) || !ID_RE.test(ownerId)) {
+    throw new ValidationError("Invalid plant or owner id.");
+  }
+
   const patch: FirestorePatch<Plant> = {
     updatedAt: serverTimestamp(),
   };
 
-  if (input.name !== undefined) patch.name = input.name.trim();
-  if (input.type !== undefined) patch.type = input.type;
-  if (input.description !== undefined) patch.description = input.description.trim();
+  if (input.name !== undefined) {
+    patch.name = validateString(input.name,
+      { field: "Plant name", min: 1, max: 100 });
+  }
+  if (input.type !== undefined) {
+    patch.type = validateString(input.type,
+      { field: "Plant type", min: 1, max: 100 }) as Plant["type"];
+  }
+  if (input.description !== undefined) {
+    patch.description = validateString(input.description,
+      { field: "Description", min: 0, max: 1000 });
+  }
 
   if (input.imageFile) {
-    const path = buildUserScopedPath("plants", ownerId, input.imageFile.name);
-    patch.imageURL = await uploadImage(path, input.imageFile);
+    const file = validateImageFile(input.imageFile,
+      { field: "Plant image", maxBytes: PLANT_IMAGE_MAX_BYTES });
+    const path = buildUserScopedPath("plants", ownerId, file.name);
+    patch.imageURL = await uploadImage(path, file);
   }
 
   await updateDoc(doc(firestore, PLANTS, plantId), patch);
 }
 
 export async function deletePlant(plantId: string): Promise<void> {
+  if (!ID_RE.test(plantId)) throw new ValidationError("Invalid plant id.");
   await deleteDoc(doc(firestore, PLANTS, plantId));
 }
 
 export async function fetchPlantById(plantId: string): Promise<Plant | null> {
+  if (!ID_RE.test(plantId)) return null;
   const snap = await getDoc(doc(firestore, PLANTS, plantId));
   return snap.exists() ? mapPlant(snap) : null;
 }

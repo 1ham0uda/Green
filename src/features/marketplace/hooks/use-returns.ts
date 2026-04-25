@@ -6,6 +6,7 @@ import {
   createReturnRequest,
   fetchAllReturns,
   fetchBuyerReturns,
+  fetchVendorReturns,
   hasReturnRequest,
   updateReturnStatus,
 } from "../services/return-service";
@@ -26,6 +27,15 @@ export function useHasReturnRequest(orderId: string) {
     queryKey: ["returns", "exists", orderId, user?.uid],
     queryFn: () => hasReturnRequest(orderId, user!.uid),
     enabled: Boolean(user?.uid) && Boolean(orderId),
+  });
+}
+
+export function useVendorReturns() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["returns", "vendor", user?.uid],
+    queryFn: () => fetchVendorReturns(user!.uid),
+    enabled: Boolean(user?.uid),
   });
 }
 

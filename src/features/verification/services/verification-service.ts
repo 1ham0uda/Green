@@ -12,8 +12,12 @@ import {
 } from "firebase/firestore";
 import { firestore } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/collections";
+import { validateString, ValidationError } from "@/lib/security/validation";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import type { VerificationRequest } from "../types";
 import type { UserProfile } from "@/features/auth/types";
+
+const ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 
 function mapRequest(d: { id: string; data: () => Record<string, unknown> }): VerificationRequest {
   const data = d.data();
@@ -36,14 +40,20 @@ export async function requestVerification(
   user: UserProfile,
   reason: string
 ): Promise<void> {
-  // Check eligibility: business accounts or users with 5+ posts
+  checkRateLimit("verification.request");
+
+  if (user.isBanned) {
+    throw new Error("Your account is suspended.");
+  }
   if (user.role !== "business" && user.postCount < 5) {
     throw new Error(
       "Verification is available for business accounts or users with at least 5 posts."
     );
   }
 
-  // Prevent duplicate pending requests
+  const cleanReason = validateString(reason,
+    { field: "Reason", min: 10, max: 1000 });
+
   const existing = await getDocs(
     query(
       collection(firestore, COLLECTIONS.verificationRequests),
@@ -61,7 +71,7 @@ export async function requestVerification(
     handle: user.handle,
     displayName: user.displayName,
     role: user.role,
-    reason: reason.trim(),
+    reason: cleanReason,
     status: "pending",
     reviewedBy: null,
     createdAt: serverTimestamp(),
@@ -119,6 +129,9 @@ export async function approveVerificationRequest(
   userId: string,
   adminId: string
 ): Promise<void> {
+  if (!ID_RE.test(requestId) || !ID_RE.test(userId) || !ID_RE.test(adminId)) {
+    throw new ValidationError("Invalid identifier.");
+  }
   await updateDoc(
     doc(firestore, COLLECTIONS.verificationRequests, requestId),
     {
@@ -140,6 +153,9 @@ export async function rejectVerificationRequest(
   userId: string,
   adminId: string
 ): Promise<void> {
+  if (!ID_RE.test(requestId) || !ID_RE.test(userId) || !ID_RE.test(adminId)) {
+    throw new ValidationError("Invalid identifier.");
+  }
   await updateDoc(
     doc(firestore, COLLECTIONS.verificationRequests, requestId),
     {

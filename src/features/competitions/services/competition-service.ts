@@ -15,8 +15,12 @@ import {
 } from "firebase/firestore";
 import { firestore } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/collections";
+import { ValidationError } from "@/lib/security/validation";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import type { UserProfile } from "@/features/auth/types";
 import { fetchPostById } from "@/features/posts/services/post-service";
+
+const ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 import type {
   Competition,
   CompetitionEntry,
@@ -121,6 +125,13 @@ export async function submitEntry(
   user: UserProfile,
   postId: string
 ): Promise<CompetitionEntry> {
+  checkRateLimit("competition.entry");
+  if (!ID_RE.test(competitionId) || !ID_RE.test(postId)) {
+    throw new ValidationError("Invalid identifier.");
+  }
+  if (user.isBanned) {
+    throw new Error("Your account is suspended.");
+  }
   const post = await fetchPostById(postId);
   if (!post) throw new Error("Post not found");
   if (post.authorId !== user.uid) {
@@ -178,6 +189,10 @@ export async function castVote(
   entryId: string,
   userId: string
 ): Promise<void> {
+  checkRateLimit("competition.vote");
+  if (!ID_RE.test(competitionId) || !ID_RE.test(entryId) || !ID_RE.test(userId)) {
+    throw new ValidationError("Invalid identifier.");
+  }
   const entryRef = doc(
     firestore,
     COMPETITIONS,
@@ -209,6 +224,10 @@ export async function removeVote(
   entryId: string,
   userId: string
 ): Promise<void> {
+  checkRateLimit("competition.vote");
+  if (!ID_RE.test(competitionId) || !ID_RE.test(entryId) || !ID_RE.test(userId)) {
+    throw new ValidationError("Invalid identifier.");
+  }
   const entryRef = doc(
     firestore,
     COMPETITIONS,

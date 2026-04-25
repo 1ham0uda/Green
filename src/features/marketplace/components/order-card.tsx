@@ -8,6 +8,7 @@ import type { Order, OrderStatus } from "../types";
 import { OrderStatusSelect } from "./order-status-select";
 import { ReturnRequestModal } from "./return-request-modal";
 import { OrderInvoiceModal } from "./order-invoice-modal";
+import { useCancelOrder } from "../hooks/use-orders";
 
 const STATUS_STEPS: OrderStatus[] = ["pending", "confirmed", "shipped", "delivered"];
 
@@ -50,6 +51,7 @@ export function OrderCard({
 }: OrderCardProps) {
   const [showInvoice, setShowInvoice] = useState(false);
   const [showReturn, setShowReturn] = useState(false);
+  const cancelMutation = useCancelOrder();
 
   const meta = STATUS_META[order.status];
   const total = order.subtotal + order.shippingFee;
@@ -185,6 +187,16 @@ export function OrderCard({
               <Icon.FileText size={15} />
               Invoice
             </button>
+            {order.status === "pending" && (
+              <button
+                onClick={() => cancelMutation.mutate(order.id)}
+                disabled={cancelMutation.isPending}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-red-50 py-2 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50"
+              >
+                <Icon.X size={15} />
+                Cancel Order
+              </button>
+            )}
             {order.status === "delivered" && (
               <button
                 onClick={() => setShowReturn(true)}

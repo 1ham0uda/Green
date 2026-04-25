@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import {
+  cancelOrder,
   fetchBuyerOrders,
   fetchVendorOrders,
   placeCodOrder,
@@ -57,6 +58,20 @@ export function useUpdateOrderStatus() {
       orderId: string;
       status: OrderStatus;
     }) => updateOrderStatus(orderId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+  });
+}
+
+export function useCancelOrder() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (orderId: string) => {
+      if (!user) throw new Error("Must be signed in");
+      return cancelOrder(orderId, user.uid);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
     },

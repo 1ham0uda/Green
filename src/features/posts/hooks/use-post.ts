@@ -8,9 +8,11 @@ import {
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import {
   createPost,
+  deletePost,
   fetchPostsByAuthor,
   hasLiked,
   likePost,
+  tagPostPlant,
   unlikePost,
 } from "../services/post-service";
 import type { CreatePostInput } from "../types";
@@ -86,4 +88,27 @@ export function useLikeMutations(postId: string, postAuthorId: string) {
   });
 
   return { like, unlike };
+}
+
+export function useDeletePost(postId: string, authorId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => deletePost(postId, authorId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["posts", "author", authorId] });
+    },
+  });
+}
+
+export function useTagPostPlant(postId: string, authorId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (plantId: string | null) => tagPostPlant(postId, plantId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["posts", "author", authorId] });
+      queryClient.invalidateQueries({ queryKey: ["post", postId] });
+    },
+  });
 }

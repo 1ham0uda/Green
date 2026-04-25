@@ -10,6 +10,7 @@ import {
   createProduct,
   deleteProduct,
   fetchActiveProducts,
+  fetchActiveProductsByVendor,
   fetchProductById,
   fetchProductsByVendor,
   updateProduct,
@@ -23,10 +24,20 @@ export function useActiveProducts() {
   });
 }
 
+// All products for a vendor — used in the vendor's own dashboard (includes pending/rejected).
 export function useVendorProducts(vendorId: string | null | undefined) {
   return useQuery({
     queryKey: ["products", "vendor", vendorId],
     queryFn: () => fetchProductsByVendor(vendorId as string),
+    enabled: Boolean(vendorId),
+  });
+}
+
+// Public-facing products for a vendor profile — approved and active only.
+export function usePublicVendorProducts(vendorId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["products", "vendor", vendorId, "public"],
+    queryFn: () => fetchActiveProductsByVendor(vendorId as string),
     enabled: Boolean(vendorId),
   });
 }

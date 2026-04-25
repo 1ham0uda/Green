@@ -9,6 +9,7 @@ import {
 } from "firebase/firestore";
 import { firestore } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/collections";
+import { validateString } from "@/lib/security/validation";
 
 const ACTIVE_DOC = "current";
 
@@ -49,9 +50,11 @@ export function subscribeToAnnouncement(
 }
 
 export async function publishAnnouncement(message: string): Promise<void> {
+  const cleanMessage = validateString(message,
+    { field: "Announcement", min: 1, max: 500 });
   const ref = doc(firestore, COLLECTIONS.announcements, ACTIVE_DOC);
   await setDoc(ref, {
-    message: message.trim(),
+    message: cleanMessage,
     active: true,
     createdAt: serverTimestamp(),
   });

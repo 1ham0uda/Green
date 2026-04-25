@@ -1,7 +1,5 @@
 import {
-  addDoc,
   collection,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -22,8 +20,13 @@ import { COLLECTIONS } from "@/lib/firebase/collections";
 import { buildUserScopedPath, uploadImage } from "@/lib/firebase/storage";
 import { log } from "@/lib/logger";
 import { createNotification } from "@/features/notifications/services/notification-service";
+import { validateString, validateImageFiles } from "@/lib/security/validation";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import type { UserProfile } from "@/features/auth/types";
 import type { Comment, CreatePostInput, Post } from "../types";
+
+const MAX_IMAGES_PER_POST = 10;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 const POSTS = COLLECTIONS.posts;
 const USERS = COLLECTIONS.users;
@@ -62,15 +65,37 @@ export async function createPost(
   author: UserProfile,
   input: CreatePostInput
 ): Promise<Post> {
+  checkRateLimit("post.create");
+
+  if (author.isBanned) {
+    throw new Error("Your account is suspended.");
+  }
+
+  const caption = validateString(input.caption,
+    { field: "Caption", min: 0, max: 2200 });
+  const files = validateImageFiles(input.imageFiles, {
+    field: "Image", maxBytes: MAX_IMAGE_BYTES, maxCount: MAX_IMAGES_PER_POST,
+  });
+  // Posts must have at least one image OR a caption — no empty posts.
+  if (files.length === 0 && caption.length === 0) {
+    throw new Error("Post must contain a caption or an image.");
+  }
+  // plantId, if set, must look like a Firestore document id (no path traversal).
+  const plantId = input.plantId
+    ? (typeof input.plantId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(input.plantId)
+        ? input.plantId
+        : null)
+    : null;
+
   const imageURLs = await Promise.all(
-    input.imageFiles.map((file) => {
+    files.map((file) => {
       const path = buildUserScopedPath("posts", author.uid, file.name);
       return uploadImage(path, file);
     })
   );
 
   const authorRef = doc(firestore, USERS, author.uid);
-  const postsRef = collection(firestore, POSTS);
+  const postRef   = doc(collection(firestore, POSTS));
 
   const payload = {
     authorId: author.uid,
@@ -78,9 +103,9 @@ export async function createPost(
     authorDisplayName: author.displayName,
     authorPhotoURL: author.photoURL,
     authorIsVerified: author.isVerified ?? false,
-    caption: input.caption.trim(),
+    caption,
     imageURLs,
-    plantId: input.plantId ?? null,
+    plantId,
     status: "pending" as const,
     rejectionReason: null,
     country: author.country ?? "EG",
@@ -91,12 +116,16 @@ export async function createPost(
     createdAt: serverTimestamp(),
   };
 
-  const created = await addDoc(postsRef, payload);
-  await updateDoc(authorRef, { postCount: increment(1) });
+  // Write the post document and increment postCount atomically so the counter
+  // never drifts if one of the two writes fails.
+  await runTransaction(firestore, async (tx) => {
+    tx.set(postRef, payload);
+    tx.update(authorRef, { postCount: increment(1) });
+  });
 
-  void log("post.create", author.uid, { targetId: created.id });
+  void log("post.create", author.uid, { targetId: postRef.id });
 
-  const snap = await getDoc(created);
+  const snap = await getDoc(postRef);
   return mapPost(snap);
 }
 
@@ -166,8 +195,13 @@ export async function fetchPostById(postId: string): Promise<Post | null> {
 }
 
 export async function deletePost(postId: string, authorId: string): Promise<void> {
-  await deleteDoc(doc(firestore, POSTS, postId));
-  await updateDoc(doc(firestore, USERS, authorId), { postCount: increment(-1) });
+  checkRateLimit("post.delete");
+  const postRef   = doc(firestore, POSTS, postId);
+  const authorRef = doc(firestore, USERS, authorId);
+  await runTransaction(firestore, async (tx) => {
+    tx.delete(postRef);
+    tx.update(authorRef, { postCount: increment(-1) });
+  });
 }
 
 // Likes: subcollection doc id == userId
@@ -177,6 +211,7 @@ export async function likePost(
   liker: { handle: string; displayName: string },
   postAuthorId: string
 ): Promise<void> {
+  checkRateLimit("post.like");
   const postRef = doc(firestore, POSTS, postId);
   const likeRef = doc(firestore, POSTS, postId, COLLECTIONS.likes, userId);
 
@@ -203,6 +238,7 @@ export async function likePost(
 }
 
 export async function unlikePost(postId: string, userId: string): Promise<void> {
+  checkRateLimit("post.like");
   const postRef = doc(firestore, POSTS, postId);
   const likeRef = doc(firestore, POSTS, postId, COLLECTIONS.likes, userId);
 
@@ -229,20 +265,31 @@ export async function addComment(
   body: string,
   postAuthorId?: string
 ): Promise<Comment> {
+  checkRateLimit("post.comment");
+
+  if (author.isBanned) {
+    throw new Error("Your account is suspended.");
+  }
+
+  const cleanBody = validateString(body, { field: "Comment", min: 1, max: 1000 });
+
   const postRef = doc(firestore, POSTS, postId);
-  const commentsRef = collection(firestore, POSTS, postId, COLLECTIONS.comments);
+  const commentRef = doc(collection(firestore, POSTS, postId, COLLECTIONS.comments));
 
   const payload = {
     postId,
     authorId: author.uid,
     authorHandle: author.handle,
     authorDisplayName: author.displayName,
-    body: body.trim(),
+    body: cleanBody,
     createdAt: serverTimestamp(),
   };
 
-  const created = await addDoc(commentsRef, payload);
-  await updateDoc(postRef, { commentCount: increment(1) });
+  // Write comment and increment commentCount atomically.
+  await runTransaction(firestore, async (tx) => {
+    tx.set(commentRef, payload);
+    tx.update(postRef, { commentCount: increment(1) });
+  });
 
   void log("post.comment", author.uid, { targetId: postId });
 
@@ -257,10 +304,20 @@ export async function addComment(
     });
   }
 
-  const snap = await getDoc(created);
+  const snap = await getDoc(commentRef);
   const data = snap.data();
   if (!data) throw new Error("Comment write failed");
   return { id: snap.id, ...(data as Omit<Comment, "id">) };
+}
+
+export async function tagPostPlant(
+  postId: string,
+  plantId: string | null
+): Promise<void> {
+  await updateDoc(doc(firestore, POSTS, postId), {
+    plantId: plantId ?? null,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function fetchComments(postId: string): Promise<Comment[]> {

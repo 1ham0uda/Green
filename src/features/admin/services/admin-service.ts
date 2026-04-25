@@ -19,8 +19,16 @@ import { firestore } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { log } from "@/lib/logger";
 import { createNotification } from "@/features/notifications/services/notification-service";
+import { validateString, ValidationError } from "@/lib/security/validation";
 import type { AdminUser, DashboardStats, ModerationLog } from "../types";
 import type { UserProfile } from "@/features/auth/types";
+
+const ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+const ALLOWED_ROLES: ReadonlySet<UserProfile["role"]> = new Set<UserProfile["role"]>([
+  "user", "business", "admin",
+]);
+const ALLOWED_COMPETITION_STATUSES = new Set(["upcoming", "active", "closed"]);
+const ALLOWED_REPORT_ACTIONS = new Set(["resolved", "dismissed"]);
 
 function mapUser(snap: QueryDocumentSnapshot): AdminUser {
   const d = snap.data();
@@ -136,10 +144,12 @@ export async function banUser(
   targetUserId: string,
   reason: string
 ): Promise<void> {
+  if (!ID_RE.test(targetUserId)) throw new ValidationError("Invalid user id.");
+  const cleanReason = validateString(reason, { field: "Reason", min: 1, max: 500 });
   await updateDoc(doc(firestore, COLLECTIONS.users, targetUserId), {
     isBanned: true,
     bannedAt: serverTimestamp(),
-    bannedReason: reason,
+    bannedReason: cleanReason,
   });
 
   await writeModerationLog(adminId, adminHandle, {
@@ -181,6 +191,8 @@ export async function updateUserRole(
   targetUserId: string,
   role: UserProfile["role"]
 ): Promise<void> {
+  if (!ID_RE.test(targetUserId)) throw new ValidationError("Invalid user id.");
+  if (!ALLOWED_ROLES.has(role)) throw new ValidationError("Invalid role.");
   await updateDoc(doc(firestore, COLLECTIONS.users, targetUserId), { role });
 }
 
@@ -274,6 +286,8 @@ export async function rejectPost(
   postId: string,
   reason: string
 ): Promise<void> {
+  if (!ID_RE.test(postId)) throw new ValidationError("Invalid post id.");
+  const cleanReason = validateString(reason, { field: "Reason", min: 1, max: 500 });
   const postRef = doc(firestore, COLLECTIONS.posts, postId);
   const postSnap = await getDoc(postRef);
   const authorId = postSnap.data()?.authorId as string | undefined;
@@ -282,7 +296,7 @@ export async function rejectPost(
     status: "rejected",
     reviewedAt: serverTimestamp(),
     reviewedBy: adminId,
-    rejectionReason: reason,
+    rejectionReason: cleanReason,
   });
 
   await writeModerationLog(adminId, adminHandle, {
@@ -352,6 +366,8 @@ export async function rejectProduct(
   productId: string,
   reason: string
 ): Promise<void> {
+  if (!ID_RE.test(productId)) throw new ValidationError("Invalid product id.");
+  const cleanReason = validateString(reason, { field: "Reason", min: 1, max: 500 });
   const productRef = doc(firestore, COLLECTIONS.products, productId);
   const productSnap = await getDoc(productRef);
   const vendorId = productSnap.data()?.vendorId as string | undefined;
@@ -361,7 +377,7 @@ export async function rejectProduct(
     isActive: false,
     reviewedAt: serverTimestamp(),
     reviewedBy: adminId,
-    rejectionReason: reason,
+    rejectionReason: cleanReason,
   });
 
   await writeModerationLog(adminId, adminHandle, {
@@ -451,13 +467,24 @@ export async function adminCreateCompetition(payload: {
   endsAt: Date;
   createdByAdminId: string;
 }): Promise<string> {
+  const title = validateString(payload.title, { field: "Title", min: 2, max: 120 });
+  const description = validateString(payload.description,
+    { field: "Description", min: 10, max: 2000 });
+  const rules = validateString(payload.rules, { field: "Rules", min: 10, max: 2000 });
+  const rewards = validateString(payload.rewards, { field: "Rewards", min: 2, max: 500 });
+  if (!(payload.startsAt instanceof Date) || !(payload.endsAt instanceof Date)) {
+    throw new ValidationError("Invalid dates.");
+  }
+  if (payload.endsAt <= payload.startsAt) {
+    throw new ValidationError("End date must be after start date.");
+  }
   const ref = await addDoc(
     collection(firestore, COLLECTIONS.competitions),
     {
-      title: payload.title.trim(),
-      description: payload.description.trim(),
-      rules: payload.rules.trim(),
-      rewards: payload.rewards.trim(),
+      title,
+      description,
+      rules,
+      rewards,
       coverImageURL: null,
       status: "upcoming",
       startsAt: payload.startsAt,
@@ -480,6 +507,10 @@ export async function adminUpdateCompetitionStatus(
   status: "upcoming" | "active" | "closed",
   adminId: string
 ): Promise<void> {
+  if (!ID_RE.test(competitionId)) throw new ValidationError("Invalid competition id.");
+  if (!ALLOWED_COMPETITION_STATUSES.has(status)) {
+    throw new ValidationError("Invalid status.");
+  }
   await updateDoc(
     doc(firestore, COLLECTIONS.competitions, competitionId),
     { status }
@@ -538,6 +569,8 @@ export async function resolveReport(
   reportId: string,
   action: "resolved" | "dismissed"
 ): Promise<void> {
+  if (!ID_RE.test(reportId)) throw new ValidationError("Invalid report id.");
+  if (!ALLOWED_REPORT_ACTIONS.has(action)) throw new ValidationError("Invalid action.");
   await updateDoc(doc(firestore, COLLECTIONS.reports, reportId), {
     status: action,
     resolvedBy: adminId,

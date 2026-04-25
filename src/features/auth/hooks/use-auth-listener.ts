@@ -4,7 +4,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useEffect } from "react";
 import { firebaseAuth } from "@/lib/firebase/config";
 import { useAuthStore } from "@/store/auth-store";
-import { fetchOrCreateProfile } from "../services/auth-service";
+import { fetchProfile } from "../services/auth-service";
 
 export function useAuthListener(): void {
   const setUser        = useAuthStore((s) => s.setUser);
@@ -26,7 +26,7 @@ export function useAuthListener(): void {
           return;
         }
 
-        const profile = await fetchOrCreateProfile(firebaseUser);
+        const profile = await fetchProfile(firebaseUser);
         setUser(profile);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Auth error");

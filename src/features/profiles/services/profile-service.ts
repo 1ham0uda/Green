@@ -21,6 +21,15 @@ import type { UserProfile } from "@/features/auth/types";
 import { FirestorePatch } from "@/types/firestore";
 import { createNotification } from "@/features/notifications/services/notification-service";
 import { mapProfile } from "@/features/auth/services/auth-service";
+import {
+  validateHandle,
+  validateImageFile,
+  validateString,
+  ValidationError,
+} from "@/lib/security/validation";
+import { checkRateLimit } from "@/lib/security/rate-limit";
+
+const ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
 
 export async function getProfileById(uid: string): Promise<PublicProfile | null> {
   const ref = doc(firestore, COLLECTIONS.users, uid);
@@ -45,22 +54,33 @@ export async function updateProfile(
   uid: string,
   input: UpdateProfileInput
 ): Promise<void> {
+  if (!ID_RE.test(uid)) throw new ValidationError("Invalid user id.");
+
   const patch: FirestorePatch<UserProfile> = {
     updatedAt: serverTimestamp(),
   };
 
-  if (input.displayName !== undefined) patch.displayName = input.displayName;
-  if (input.bio !== undefined) patch.bio = input.bio;
-  if (input.handle !== undefined) patch.handle = input.handle;
+  if (input.displayName !== undefined) {
+    patch.displayName = validateString(input.displayName,
+      { field: "Display name", min: 1, max: 80 });
+  }
+  if (input.bio !== undefined) {
+    patch.bio = validateString(input.bio, { field: "Bio", min: 0, max: 500 });
+  }
+  if (input.handle !== undefined) patch.handle = validateHandle(input.handle);
 
   if (input.avatarFile) {
-    const path = buildUserScopedPath("avatars", uid, input.avatarFile.name);
-    patch.photoURL = await uploadImage(path, input.avatarFile);
+    const file = validateImageFile(input.avatarFile,
+      { field: "Avatar", maxBytes: 5 * 1024 * 1024 });
+    const path = buildUserScopedPath("avatars", uid, file.name);
+    patch.photoURL = await uploadImage(path, file);
   }
 
   if (input.coverFile) {
-    const path = buildUserScopedPath("covers", uid, input.coverFile.name);
-    patch.coverPhotoURL = await uploadImage(path, input.coverFile);
+    const file = validateImageFile(input.coverFile,
+      { field: "Cover photo", maxBytes: 8 * 1024 * 1024 });
+    const path = buildUserScopedPath("covers", uid, file.name);
+    patch.coverPhotoURL = await uploadImage(path, file);
   }
 
   const ref = doc(firestore, COLLECTIONS.users, uid);
@@ -77,6 +97,10 @@ export async function followUser(
   followingId: string,
   followerDisplayName?: string
 ): Promise<void> {
+  checkRateLimit("follow.toggle");
+  if (!ID_RE.test(followerId) || !ID_RE.test(followingId)) {
+    throw new ValidationError("Invalid user id.");
+  }
   if (followerId === followingId) {
     throw new Error("Cannot follow yourself");
   }
@@ -116,6 +140,10 @@ export async function unfollowUser(
   followerId: string,
   followingId: string
 ): Promise<void> {
+  checkRateLimit("follow.toggle");
+  if (!ID_RE.test(followerId) || !ID_RE.test(followingId)) {
+    throw new ValidationError("Invalid user id.");
+  }
   const followId = buildFollowId(followerId, followingId);
   const followRef = doc(firestore, COLLECTIONS.follows, followId);
   const followerRef = doc(firestore, COLLECTIONS.users, followerId);

@@ -17,10 +17,19 @@ import {
   serverTimestamp,
   updateDoc,
   where,
+  type FieldValue,
 } from "firebase/firestore";
 import { firebaseAuth, firestore } from "@/lib/firebase/config";
 import { COLLECTIONS } from "@/lib/firebase/collections";
 import { log } from "@/lib/logger";
+import {
+  validateEmail,
+  validateHandle,
+  validatePassword,
+  validateString,
+  ValidationError,
+} from "@/lib/security/validation";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 import type { SignInInput, SignUpInput, UserProfile, UserRole } from "../types";
 
 // ─── Error mapping ────────────────────────────────────────────────────────────
@@ -72,14 +81,19 @@ export function mapProfile(d: Record<string, unknown>): UserProfile {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function sanitizeHandle(raw: string): string {
-  return raw.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20) || "gardener";
-}
-
 export async function isHandleAvailable(handle: string): Promise<boolean> {
+  // Validate format BEFORE issuing a query — no point round-tripping for
+  // garbage input, and we don't want attackers to use this endpoint as an
+  // unbounded query probe.
+  let cleaned: string;
+  try {
+    cleaned = validateHandle(handle);
+  } catch {
+    return false;
+  }
   const q = query(
     collection(firestore, COLLECTIONS.users),
-    where("handle", "==", handle),
+    where("handle", "==", cleaned),
     limit(1)
   );
   const snap = await getDocs(q);
@@ -89,25 +103,38 @@ export async function isHandleAvailable(handle: string): Promise<boolean> {
 // ─── Sign up ──────────────────────────────────────────────────────────────────
 
 export async function signUpWithEmail(input: SignUpInput): Promise<UserProfile> {
-  const handle = sanitizeHandle(input.username);
+  // Rate limit BEFORE any Firebase calls — prevents spam at the boundary.
+  checkRateLimit("auth.signup");
 
-  if (handle.length < 3) {
-    throw new Error("Username must be at least 3 characters.");
-  }
+  // Strict input validation. Mirrors Firestore-rule constraints so a malicious
+  // client cannot bypass the UI checks. Throws ValidationError on bad input.
+  const email       = validateEmail(input.email);
+  const password    = validatePassword(input.password);
+  const handle      = validateHandle(input.username);
+  const displayName = validateString(input.displayName, {
+    field: "Display name", min: 1, max: 80,
+  });
+
+  // Account type is a closed set — never trust client-supplied roles.
+  const role: UserRole = input.role === "business" ? "business" : "user";
+
+  // Country / governorate / city are short enums — defensive caps.
+  const country     = validateString(input.country || "EG",
+                        { field: "Country", min: 1, max: 8 });
+  const governorate = validateString(input.governorate || "",
+                        { field: "Governorate", min: 0, max: 80 });
+  const city        = validateString(input.city || "",
+                        { field: "City", min: 0, max: 80 });
 
   // 1. Create Firebase Auth account
   let credential;
   try {
-    credential = await createUserWithEmailAndPassword(
-      firebaseAuth,
-      input.email.trim().toLowerCase(),
-      input.password
-    );
+    credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
   } catch (err) {
     throw new Error(mapFirebaseError(err));
   }
 
-  await updateProfile(credential.user, { displayName: input.displayName.trim() });
+  await updateProfile(credential.user, { displayName });
 
   // 2. Atomically claim handle + write user document
   const handleRef = doc(firestore, COLLECTIONS.handles, handle);
@@ -125,15 +152,18 @@ export async function signUpWithEmail(input: SignUpInput): Promise<UserProfile> 
         claimedAt: serverTimestamp(),
       });
 
+      // NOTE: every privileged field (role, isVerified, isBanned) is fixed to
+      // its safe default here AND enforced by Firestore rules on create —
+      // any client attempt to self-elevate to admin is rejected by both layers.
       tx.set(userRef, {
         uid:                credential.user.uid,
-        email:              credential.user.email ?? input.email.trim().toLowerCase(),
-        displayName:        input.displayName.trim(),
+        email:              credential.user.email ?? email,
+        displayName,
         handle,
         photoURL:           null,
         coverPhotoURL:      null,
         bio:                "",
-        role:               input.role ?? "user",
+        role,
         isVerified:         false,
         verificationStatus: "none",
         isBanned:           false,
@@ -141,9 +171,9 @@ export async function signUpWithEmail(input: SignUpInput): Promise<UserProfile> 
         followerCount:      0,
         followingCount:     0,
         postCount:          0,
-        country:            input.country   || "EG",
-        governorate:        input.governorate,
-        city:               input.city,
+        country,
+        governorate,
+        city,
         createdAt:          serverTimestamp(),
         updatedAt:          serverTimestamp(),
       });
@@ -173,13 +203,19 @@ export async function signUpWithEmail(input: SignUpInput): Promise<UserProfile> 
 // ─── Sign in ──────────────────────────────────────────────────────────────────
 
 export async function signInWithEmail(input: SignInInput): Promise<UserProfile> {
+  checkRateLimit("auth.signin");
+
+  // Light validation — full password rules are not enforced on sign-in
+  // (legacy passwords may exist), but we do reject malformed shape.
+  const email = validateEmail(input.email);
+  if (typeof input.password !== "string" || input.password.length === 0
+      || input.password.length > 256) {
+    throw new ValidationError("Invalid email or password.");
+  }
+
   let credential;
   try {
-    credential = await signInWithEmailAndPassword(
-      firebaseAuth,
-      input.email.trim().toLowerCase(),
-      input.password
-    );
+    credential = await signInWithEmailAndPassword(firebaseAuth, email, input.password);
   } catch (err) {
     throw new Error(mapFirebaseError(err));
   }
@@ -190,7 +226,7 @@ export async function signInWithEmail(input: SignInInput): Promise<UserProfile> 
     throw new Error("EMAIL_NOT_VERIFIED");
   }
 
-  const profile = await fetchOrCreateProfile(credential.user);
+  const profile = await fetchProfile(credential.user);
 
   if (profile.isBanned) {
     await signOut(firebaseAuth);
@@ -212,56 +248,44 @@ export async function signOutUser(): Promise<void> {
 // ─── Resend verification email ────────────────────────────────────────────────
 
 export async function resendVerificationEmail(email: string, password: string): Promise<void> {
+  checkRateLimit("auth.resend");
+  const cleanEmail = validateEmail(email);
+  if (typeof password !== "string" || password.length === 0 || password.length > 256) {
+    throw new ValidationError("Invalid email or password.");
+  }
+
   let credential;
   try {
-    credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+    credential = await signInWithEmailAndPassword(firebaseAuth, cleanEmail, password);
   } catch (err) {
     throw new Error(mapFirebaseError(err));
   }
-  if (credential.user.emailVerified) {
-    await signOut(firebaseAuth);
-    throw new Error("Your email is already verified. You can sign in.");
+
+  try {
+    if (credential.user.emailVerified) {
+      throw new Error("Your email is already verified. You can sign in.");
+    }
+    await sendEmailVerification(credential.user);
+  } finally {
+    // Always sign out, whether sendEmailVerification succeeded or threw.
+    await signOut(firebaseAuth).catch(() => null);
   }
-  await sendEmailVerification(credential.user);
-  await signOut(firebaseAuth);
 }
 
 // ─── Profile helpers ──────────────────────────────────────────────────────────
 
-export async function fetchOrCreateProfile(user: User): Promise<UserProfile> {
+/**
+ * Fetches the Firestore profile for a verified Firebase Auth user.
+ * Throws if the profile document does not exist — this is a data integrity
+ * error that must not be silently papered over.
+ */
+export async function fetchProfile(user: User): Promise<UserProfile> {
   const ref  = doc(firestore, COLLECTIONS.users, user.uid);
   const snap = await getDoc(ref);
   if (!snap.exists()) {
-    // Fallback: write a minimal profile if Firestore doc is somehow missing
-    const handle = sanitizeHandle((user.email ?? user.uid).split("@")[0]);
-    await runTransaction(firestore, async (tx) => {
-      const s = await tx.get(ref);
-      if (s.exists()) return;
-      tx.set(ref, {
-        uid:                user.uid,
-        email:              user.email ?? "",
-        displayName:        user.displayName ?? "Gardener",
-        handle,
-        photoURL:           user.photoURL ?? null,
-        coverPhotoURL:      null,
-        bio:                "",
-        role:               "user",
-        isVerified:         false,
-        verificationStatus: "none",
-        isBanned:           false,
-        bannedReason:       null,
-        followerCount:      0,
-        followingCount:     0,
-        postCount:          0,
-        country:            "EG",
-        governorate:        "",
-        city:               "",
-        createdAt:          serverTimestamp(),
-        updatedAt:          serverTimestamp(),
-      });
-    });
-    const fresh = await getDoc(ref);
-    return mapProfile(fresh.data()!);
+    throw new Error(
+      "Account profile not found. Please contact support or sign up again."
+    );
   }
   return mapProfile(snap.data());
 }
@@ -270,8 +294,29 @@ export async function updateUserProfile(
   uid: string,
   patch: Partial<Pick<UserProfile, "displayName" | "bio" | "photoURL" | "handle">>
 ): Promise<void> {
-  await updateDoc(doc(firestore, COLLECTIONS.users, uid), {
-    ...patch,
-    updatedAt: serverTimestamp(),
-  });
+  // Validate every field that the caller is allowed to touch. Anything not
+  // listed here is silently dropped — the Firestore rules enforce the same
+  // allow-list, but this stops accidental writes from reaching the wire.
+  const safe: Record<string, FieldValue | string | null> = { updatedAt: serverTimestamp() };
+  if (patch.displayName !== undefined) {
+    safe.displayName = validateString(patch.displayName,
+      { field: "Display name", min: 1, max: 80 });
+  }
+  if (patch.bio !== undefined) {
+    safe.bio = validateString(patch.bio, { field: "Bio", min: 0, max: 500 });
+  }
+  if (patch.handle !== undefined) {
+    safe.handle = validateHandle(patch.handle);
+  }
+  if (patch.photoURL !== undefined) {
+    // Photo URL comes from Firebase Storage download URL — trust it shape-wise
+    // but cap length defensively.
+    if (patch.photoURL !== null
+        && (typeof patch.photoURL !== "string" || patch.photoURL.length > 2048)) {
+      throw new ValidationError("Invalid photo URL.");
+    }
+    safe.photoURL = patch.photoURL;
+  }
+
+  await updateDoc(doc(firestore, COLLECTIONS.users, uid), safe);
 }
